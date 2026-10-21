@@ -1,0 +1,52 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "ubo/common",
+    "description": "UBO.Common: shared building blocks for UBO Laravel APIs and their consumers.",
+    "type": "library",
+    "license": "proprietary",
+    "keywords": ["ubo", "laravel", "oauth2", "m2m", "api-client"],
+    "require": {
+        "php": "^8.3",
+        "guzzlehttp/guzzle": "^7.8|^8.0",
+        "illuminate/cache": "^12.0|^13.0",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "lcobucci/jwt": "^5.3",
+        "psr/clock": "^1.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.27",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.8|^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "UBO\\Common\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "UBO\\Common\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "UBO\\Common\\UboCommonServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "lint": "pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

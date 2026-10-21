@@ -37,6 +37,20 @@ final readonly class VerifiedToken
         return $token instanceof self ? $token : null;
     }
 
+    /**
+     * User behind a token, from its "sub". Passport sets "sub" to the client id on client
+     * credentials tokens, and SQL Server may return that id in a different case than the
+     * client id, so they are compared case-insensitively.
+     */
+    public static function userIdFromSubject(mixed $subject, string $clientId): ?string
+    {
+        if (! is_scalar($subject) || ($subject = (string) $subject) === '' || strcasecmp($subject, $clientId) === 0) {
+            return null;
+        }
+
+        return $subject;
+    }
+
     /** Issued with the client credentials grant (no user behind it). */
     public function isMachineToken(): bool
     {

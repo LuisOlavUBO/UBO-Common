@@ -99,7 +99,7 @@ final class JwtValidator implements TokenValidator
         return new VerifiedToken(
             id: $id,
             clientId: $clientId,
-            userId: is_string($subject) && $subject !== '' && $subject !== $clientId ? $subject : null,
+            userId: VerifiedToken::userIdFromSubject($subject, $clientId),
             scopes: array_values(array_filter($scopes, 'is_string')),
             expiresAt: $claims->get(RegisteredClaims::EXPIRATION_TIME),
         );

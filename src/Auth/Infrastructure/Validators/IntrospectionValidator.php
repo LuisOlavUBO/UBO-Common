@@ -100,7 +100,7 @@ final class IntrospectionValidator implements TokenValidator
         return [
             'active' => true,
             'client_id' => $data['client_id'],
-            'sub' => filled($data['sub'] ?? null) ? (string) $data['sub'] : null,
+            'sub' => VerifiedToken::userIdFromSubject($data['sub'] ?? null, $data['client_id']),
             'scopes' => array_values(array_filter(explode(' ', (string) ($data['scope'] ?? '')))),
             'exp' => (int) $data['exp'],
         ];

@@ -9,6 +9,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-21
+
+### Fixed
+
+- **Auth**: un token de sistema (client credentials) cuyo `sub` es el client_id con otras
+  mayúsculas/minúsculas (SQL Server devuelve los GUID en mayúsculas) ya no se confunde con un token
+  de usuario. Afectaba a las estrategias `jwt`, `introspection` y `hybrid`
+  (`VerifiedToken::userIdFromSubject()`).
+
+## [1.0.0] - 2026-10-21
+
 ### Added
 
 - Estructura modular: `UboCommonServiceProvider`, `Support\ModuleServiceProvider` y `config/ubo-common.php`.

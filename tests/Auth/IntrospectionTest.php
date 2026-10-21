@@ -44,6 +44,34 @@ test('an active token is accepted and mapped', function () {
         && $r['scope'] === 'introspect');
 });
 
+test('a sub equal to the client id (any case) means a machine token', function (string $sub) {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/v1/auth/introspect' => Http::response([
+            ...activeIntrospection(),
+            'client_id' => '01A15F76-9829-7298-85B5-FA625530D051',
+            'sub' => $sub,
+        ]),
+    ]);
+
+    $token = app(TokenValidator::class)->validate('opaque-token');
+
+    expect($token->isMachineToken())->toBeTrue()
+        ->and($token->userId)->toBeNull();
+})->with([
+    'same case' => '01A15F76-9829-7298-85B5-FA625530D051',
+    'lower case' => '01a15f76-9829-7298-85b5-fa625530d051',
+]);
+
+test('a sub different from the client id is a user', function () {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/v1/auth/introspect' => Http::response([...activeIntrospection(), 'sub' => '42']),
+    ]);
+
+    expect(app(TokenValidator::class)->validate('opaque-token')->userId)->toBe('42');
+});
+
 test('an inactive token is rejected', function () {
     Http::fake([
         ...fakeTokenEndpoint(),

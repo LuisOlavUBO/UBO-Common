@@ -9,7 +9,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
-Versión MAJOR (2.0.0): cambia la forma de llamar a las APIs. Requiere la versión de API-Auth que
+## [2.0.0] - 2026-10-21
+
+Versión MAJOR: cambia la forma de llamar a las APIs. Requiere la versión de API-Auth que
 acepta el parámetro `api` en `/oauth/token`.
 
 ### Changed

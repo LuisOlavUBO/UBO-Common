@@ -9,6 +9,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+Versión MAJOR (2.0.0): cambia la forma de llamar a las APIs. Requiere la versión de API-Auth que
+acepta el parámetro `api` en `/oauth/token`.
+
+### Changed
+
+- **ApiClient**: `UboApi::call()` y `UboApi::callAsync()` reciben el nombre de la API en API-Auth y
+  su URL: `UboApi::call('api-maestros', config('services.maestros.url'))`. Common ya no tiene un
+  catálogo de APIs; cada sistema guarda las URLs que usa en su propia configuración.
+- **ApiClient**: cada API recibe un token emitido solo para ella. Common lo pide con `api=<nombre>`
+  y API-Auth le pone los scopes que el sistema tiene en esa API; ya no se declaran scopes. Hay un
+  token en caché por API.
+- **ApiClient**: `UboApi::fake()` usa como clave el nombre de la API en API-Auth
+  (`'api-maestros/api/v1/...'`) o una URL completa.
+- **Auth**: `ServiceTokenProvider::token()` y `forget()` aceptan el parámetro opcional `$api`.
+- **Auth**: cuando API-Auth rechaza un pedido de token, el mensaje incluye su `hint` (por ejemplo,
+  qué scope no es válido).
+
+### Removed
+
+- **ApiClient**: el arreglo `apis` de `config/ubo-apis.php`, la variable `UBO_API_MAESTROS_URL` y la
+  excepción `UnknownApi`. Una llamada sin nombre de API o sin URL lanza `InvalidArgumentException`.
+
 ## [1.0.1] - 2026-10-21
 
 ### Fixed

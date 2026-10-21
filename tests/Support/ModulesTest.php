@@ -11,7 +11,7 @@ test('every module is enabled by default', function () {
     expect(app(Router::class)->getMiddleware())->toHaveKey('ubo.auth')
         ->and(app()->bound(ApiClientManager::class))->toBeTrue()
         ->and(config('ubo-auth.strategy'))->toBe('hybrid')
-        ->and(config('ubo-apis.apis.maestros'))->toBeArray();
+        ->and(config('ubo-apis.defaults.retries'))->toBe(2);
 });
 
 test('the strategy selects the validator', function (string $strategy, string $class) {

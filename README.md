@@ -42,7 +42,7 @@ a la aplicación y modificarlo:
 ```bash
 php artisan vendor:publish --tag=ubo-common-config   # módulos activos
 php artisan vendor:publish --tag=ubo-auth-config     # módulo Auth
-php artisan vendor:publish --tag=ubo-apis-config     # catálogo de APIs del módulo ApiClient
+php artisan vendor:publish --tag=ubo-apis-config     # timeouts y reintentos del módulo ApiClient
 ```
 
 ## Uso rápido
@@ -58,7 +58,10 @@ Route::middleware('ubo.auth:geografia:leer')->get('regiones/{cut}', ...);
 ```php
 use UBO\Common\ApiClient\UboApi;
 
-$comunas = UboApi::call('maestros')->get('/api/v1/geografia/regiones/13/comunas')->json('data');
+// nombre de la API en API-Auth + su URL (guardada en la config del propio sistema)
+$comunas = UboApi::call('api-maestros', config('services.maestros.url'))
+    ->get('/api/v1/geografia/regiones/13/comunas')
+    ->json('data');
 ```
 
 ## Variables de entorno
@@ -70,7 +73,6 @@ $comunas = UboApi::call('maestros')->get('/api/v1/geografia/regiones/13/comunas'
 | `UBO_AUTH_STRATEGY` | Auth | `jwt`, `introspection` o `hybrid` (por defecto) |
 | `UBO_AUTH_PUBLIC_KEY` | Auth | Clave pública fija (PEM o ruta). Vacío: se descarga de API-Auth |
 | `UBO_AUTH_ALLOW_USER_TOKENS` | Auth | `false` por defecto: solo tokens M2M |
-| `UBO_API_<NOMBRE>_URL` | ApiClient | URL de cada API del catálogo, ej. `UBO_API_MAESTROS_URL` |
 | `UBO_COMMON_AUTH` / `UBO_COMMON_API_CLIENT` | — | Activar o desactivar cada módulo (`true` por defecto) |
 
 El resto de los ajustes (TTL de caché, timeouts, reintentos...) está comentado en

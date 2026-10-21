@@ -10,7 +10,7 @@ use UBO\Common\Auth\Contracts\ServiceTokenProvider;
  * Asynchronous call to a UBO API: each verb starts the request at once and returns a
  * UboPromise. Several promises run concurrently; wait() returns the Response.
  *
- *     $promise = UboApi::callAsync('maestros')->get('/api/v1/geografia/paises');
+ *     $promise = UboApi::callAsync('api-maestros', $url)->get('/api/v1/geografia/paises');
  *     // ... other work ...
  *     $paises = $promise->wait()->json('data');
  *

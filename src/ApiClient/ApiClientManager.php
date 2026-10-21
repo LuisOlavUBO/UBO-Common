@@ -11,12 +11,16 @@ use LogicException;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 
 /**
- * Builds clients for the APIs in config/ubo-apis.php. Used through the UboApi facade.
+ * Builds clients for any UBO API: the caller gives the API's name in API-Auth and its
+ * URL. Used through the UboApi facade.
  */
 final class ApiClientManager
 {
     /** @var callable|null Guzzle handler shared by async requests so they run concurrently. */
     private $asyncHandler = null;
+
+    /** @var array<string, string> API name => fake base URL, set by fake(). */
+    private array $fakedApis = [];
 
     public function __construct(
         private readonly Config $config,
@@ -24,16 +28,20 @@ final class ApiClientManager
         private readonly Container $container,
     ) {}
 
-    public function call(string $api): UboClient
+    /**
+     * @param  string  $api  name of the API in API-Auth (e.g. "api-maestros"); the token is only valid there
+     * @param  string|null  $url  base URL of the API, usually read from this application's config
+     */
+    public function call(string $api, ?string $url): UboClient
     {
-        return new UboClient($this->definition($api), $this->http, $this->tokens());
+        return new UboClient($this->definition($api, $url), $this->http, $this->tokens());
     }
 
-    public function callAsync(string $api): UboAsyncClient
+    public function callAsync(string $api, ?string $url): UboAsyncClient
     {
         $this->asyncHandler ??= Utils::chooseHandler();
 
-        return new UboAsyncClient($this->definition($api), $this->http, $this->tokens(), $this->asyncHandler);
+        return new UboAsyncClient($this->definition($api, $url), $this->http, $this->tokens(), $this->asyncHandler);
     }
 
     /**
@@ -48,18 +56,20 @@ final class ApiClientManager
         return array_map(fn (UboPromise $promise) => $promise->wait(), $promises);
     }
 
-    public function definition(string $api): ApiDefinition
+    public function definition(string $api, ?string $url): ApiDefinition
     {
-        return ApiDefinition::fromConfig($api, (array) $this->config->get('ubo-apis', []));
+        return ApiDefinition::fromConfig($api, $this->fakedApis[$api] ?? $url, (array) $this->config->get('ubo-apis', []));
     }
 
     /**
      * Fake API-Auth and the UBO APIs in tests. Keys start with the API name:
      *
-     *     UboApi::fake(['maestros/api/v1/geografia/*' => ['data' => [...]]]);
+     *     UboApi::fake(['api-maestros/api/v1/geografia/*' => ['data' => [...]]]);
      *
-     * Values are anything Http::fake() accepts (array => JSON 200, Http::response(), closure).
-     * Keys that do not start with a known API name are passed to Http::fake() as they are.
+     * Calls to an API named in the keys go to a fake host, whatever URL they pass (it may
+     * even be unset). Keys that start with http:// or https:// are passed to Http::fake()
+     * as they are. Values are anything Http::fake() accepts (array => JSON 200,
+     * Http::response(), closure).
      *
      * @param  array<string, mixed>  $stubs
      */
@@ -68,12 +78,6 @@ final class ApiClientManager
         $this->config->set('ubo-auth.url', $this->config->get('ubo-auth.url') ?: 'https://api-auth.ubo.test');
         $this->config->set('ubo-auth.client_id', $this->config->get('ubo-auth.client_id') ?: 'fake-client');
         $this->config->set('ubo-auth.client_secret', $this->config->get('ubo-auth.client_secret') ?: 'fake-secret');
-
-        foreach (array_keys((array) $this->config->get('ubo-apis.apis', [])) as $name) {
-            if (blank($this->config->get("ubo-apis.apis.{$name}.url"))) {
-                $this->config->set("ubo-apis.apis.{$name}.url", "https://{$name}.ubo.test");
-            }
-        }
 
         $tokenUrl = rtrim($this->config->get('ubo-auth.url'), '/').$this->config->get('ubo-auth.endpoints.token');
 
@@ -84,10 +88,16 @@ final class ApiClientManager
         ])];
 
         foreach ($stubs as $pattern => $response) {
-            [$name, $path] = explode('/', $pattern, 2) + [1 => ''];
-            $url = $this->config->get("ubo-apis.apis.{$name}.url");
+            if (preg_match('#^https?://#', $pattern)) {
+                $fakes[$pattern] = $response;
 
-            $fakes[$url ? rtrim($url, '/').'/'.ltrim($path, '/') : $pattern] = $response;
+                continue;
+            }
+
+            [$name, $path] = explode('/', $pattern, 2) + [1 => ''];
+            $this->fakedApis[$name] = "https://{$name}.ubo.test";
+
+            $fakes[$this->fakedApis[$name].'/'.ltrim($path, '/')] = $response;
         }
 
         $this->http->fake($fakes);

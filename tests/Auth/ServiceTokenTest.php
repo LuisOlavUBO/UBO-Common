@@ -30,6 +30,31 @@ test('scope order does not matter, but different scopes get different tokens', f
     Http::assertSentCount(2);
 });
 
+test('a token for an API asks API-Auth for that API and is cached apart', function () {
+    Http::fake(fakeTokenEndpoint());
+    $tokens = app(ServiceTokenProvider::class);
+
+    $tokens->token(api: 'api-maestros');
+    $tokens->token(api: 'api-maestros');
+    $tokens->token(api: 'api-matricula');
+    $tokens->forget(api: 'api-matricula');
+    $tokens->token(api: 'api-maestros');
+
+    Http::assertSentCount(2);
+    Http::assertSent(fn (Request $r) => $r['api'] === 'api-maestros' && ! isset($r['scope']));
+    Http::assertSent(fn (Request $r) => $r['api'] === 'api-matricula');
+});
+
+test('the hint from API-Auth is part of the error', function () {
+    Http::fake(['https://api-auth.test/oauth/token' => Http::response([
+        'error' => 'invalid_scope',
+        'error_description' => 'The requested scope is invalid, unknown, or malformed',
+        'hint' => 'Check the `bancos:escribir` scope',
+    ], 400)]);
+
+    app(ServiceTokenProvider::class)->token(['bancos:escribir']);
+})->throws(ServiceTokenException::class, 'malformed. Check the `bancos:escribir` scope.');
+
 test('it is renewed shortly before it expires', function () {
     Http::fake(['https://api-auth.test/oauth/token' => Http::sequence()
         ->push(['access_token' => 'first', 'expires_in' => 3600])

@@ -27,7 +27,6 @@ abstract class TestCase extends Orchestra
         $app['config']->set('ubo-auth.client_id', 'maestros-client');
         $app['config']->set('ubo-auth.client_secret', 'maestros-secret');
         $app['config']->set('ubo-apis.defaults.retry_delay', 0);
-        $app['config']->set('ubo-apis.apis.maestros.url', 'https://maestros.test');
 
         foreach (static::$bootConfig as $key => $value) {
             $app['config']->set($key, $value);

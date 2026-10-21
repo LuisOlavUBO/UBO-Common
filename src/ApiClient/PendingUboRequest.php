@@ -57,7 +57,7 @@ abstract class PendingUboRequest
         $request = clone $this->request;
 
         try {
-            $request->withToken($this->tokens->token($this->api->scopes));
+            $request->withToken($this->tokens->token(api: $this->api->name));
         } catch (ServiceTokenException $e) {
             throw UboApiException::authentication($this->api->name, $e);
         }
@@ -68,8 +68,8 @@ abstract class PendingUboRequest
         $when = function (Throwable $e, PendingRequest $request, ?string $method) use (&$tokenRenewed, &$retriesLeft): bool {
             if ($this->isUnauthorized($e) && ! $tokenRenewed) {
                 $tokenRenewed = true;
-                $this->tokens->forget($this->api->scopes);
-                $request->withToken($this->tokens->token($this->api->scopes));
+                $this->tokens->forget(api: $this->api->name);
+                $request->withToken($this->tokens->token(api: $this->api->name));
 
                 return true;
             }

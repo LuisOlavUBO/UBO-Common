@@ -17,5 +17,5 @@ test('the api-client module explains that it needs the auth module', function ()
     TestCase::$bootConfig = ['ubo-common.modules.auth' => false];
     $this->refreshApplication();
 
-    UboApi::call('maestros');
+    UboApi::call('api-maestros', 'https://maestros.test');
 })->throws(LogicException::class, 'needs the auth module');

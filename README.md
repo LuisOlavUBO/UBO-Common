@@ -73,6 +73,7 @@ $comunas = UboApi::call('api-maestros', config('services.maestros.url'))
 | `UBO_AUTH_STRATEGY` | Auth | `jwt`, `introspection` o `hybrid` (por defecto) |
 | `UBO_AUTH_PUBLIC_KEY` | Auth | Clave pública fija (PEM o ruta). Vacío: se descarga de API-Auth |
 | `UBO_AUTH_ALLOW_USER_TOKENS` | Auth | `false` por defecto: solo tokens M2M |
+| `UBO_AUTH_API` | Auth | Nombre de esta API en API-Auth. Rechaza tokens de sistema emitidos para otra API |
 | `UBO_COMMON_AUTH` / `UBO_COMMON_API_CLIENT` | — | Activar o desactivar cada módulo (`true` por defecto) |
 
 El resto de los ajustes (TTL de caché, timeouts, reintentos...) está comentado en

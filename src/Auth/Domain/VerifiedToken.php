@@ -20,6 +20,7 @@ final readonly class VerifiedToken
      * @param  string  $clientId  OAuth client the token was issued to
      * @param  string|null  $userId  null for machine-to-machine tokens
      * @param  list<string>  $scopes
+     * @param  list<string>  $audiences  "aud" claim: the client id and, for tokens issued for one API, its name
      */
     public function __construct(
         public string $id,
@@ -27,6 +28,7 @@ final readonly class VerifiedToken
         public ?string $userId,
         public array $scopes,
         public DateTimeImmutable $expiresAt,
+        public array $audiences = [],
     ) {}
 
     /** The token validated by the "ubo.auth" middleware for this request, if any. */
@@ -55,6 +57,12 @@ final readonly class VerifiedToken
     public function isMachineToken(): bool
     {
         return $this->userId === null;
+    }
+
+    /** Issued for this API (its name in API-Auth is in "aud"). */
+    public function isFor(string $api): bool
+    {
+        return in_array($api, $this->audiences, true);
     }
 
     public function hasScope(string $scope): bool

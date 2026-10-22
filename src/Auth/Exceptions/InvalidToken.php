@@ -44,4 +44,9 @@ final class InvalidToken extends AuthenticationException
     {
         return new self('user_token_not_allowed');
     }
+
+    public static function wrongAudience(): self
+    {
+        return new self('wrong_audience');
+    }
 }

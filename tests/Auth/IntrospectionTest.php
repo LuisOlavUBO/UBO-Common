@@ -136,3 +136,19 @@ test('missing client credentials fail closed with 503', function () {
 
     app(TokenValidator::class)->validate('opaque-token');
 })->throws(AuthServerUnavailable::class);
+
+test('the audience reported by API-Auth is kept, so the middleware can check it', function () {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/v1/auth/introspect' => Http::response([
+            ...activeIntrospection(),
+            'aud' => ['SIS_SQLSRV', 'api-maestros'],
+        ]),
+    ]);
+
+    $token = app(TokenValidator::class)->validate('opaque-token');
+
+    expect($token->audiences)->toBe(['SIS_SQLSRV', 'api-maestros'])
+        ->and($token->isFor('api-maestros'))->toBeTrue()
+        ->and($token->isFor('api-matricula'))->toBeFalse();
+});

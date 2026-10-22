@@ -9,6 +9,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-22
+
+Versión MINOR: compatible con la 2.0. Para rechazar tokens emitidos para otra API hace falta la
+versión de API-Auth que pone el nombre de la API en el `aud`.
+
+### Added
+
+- **Auth**: `UBO_AUTH_API` (`ubo-auth.api`), el nombre de esta API en API-Auth. Con ella definida,
+  el middleware `ubo.auth` rechaza (401 `wrong_audience`) los tokens de sistema cuyo `aud` no nombra
+  a esta API, aunque traigan un scope con el mismo nombre. Sin ella no cambia nada.
+- **Auth**: `VerifiedToken::$audiences` y `VerifiedToken::isFor()`. La introspección conserva el
+  `aud` que devuelve API-Auth.
+- **Auth**: `TokenFactory::forClient()` emite los tokens para la API configurada en `ubo-auth.api`
+  y acepta `api:` para simular tokens de otra API.
+- **Auth**: `ubo:auth:check` muestra el nombre de la API configurado.
+
 ## [2.0.0] - 2026-10-21
 
 Versión MAJOR: cambia la forma de llamar a las APIs. Requiere la versión de API-Auth que

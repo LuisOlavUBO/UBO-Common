@@ -26,6 +26,7 @@ final class CheckCommand extends Command
 
         $this->components->twoColumnDetail('Strategy', $settings->strategy);
         $this->components->twoColumnDetail('API-Auth URL', $settings->url ?? '<fg=red>not configured</>');
+        $this->components->twoColumnDetail('This API (aud)', $settings->api ?? 'not set: tokens issued for any API are accepted');
 
         $ok = $this->check('Public key', function () use ($keys) {
             $key = $keys->refresh() ?? $keys->get();

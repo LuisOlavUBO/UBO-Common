@@ -111,3 +111,26 @@ test('all required scopes are needed', function () {
 test('a route without scopes only needs a valid token', function () {
     $this->withToken($this->tokens->forClient('SIS_SQLSRV'))->getJson('/protected/any')->assertOk();
 });
+
+test('an API that knows its name rejects machine tokens issued for another API', function () {
+    config(['ubo-auth.api' => 'api-maestros']);
+
+    $this->withToken($this->tokens->forClient('SIS_SQLSRV', ['geografia:leer']))
+        ->getJson('/protected')->assertOk();
+    $this->withToken($this->tokens->forClient('SIS_SQLSRV', ['geografia:leer'], api: 'api-matricula'))
+        ->getJson('/protected')->assertUnauthorized();
+    $this->withToken($this->tokens->forClient('SIS_SQLSRV', ['geografia:leer'], api: ''))
+        ->getJson('/protected')->assertUnauthorized();
+});
+
+test('without its name the API accepts machine tokens issued for any API', function () {
+    $this->withToken($this->tokens->forClient('SIS_SQLSRV', ['geografia:leer'], api: 'api-matricula'))
+        ->getJson('/protected')->assertOk();
+});
+
+test('user tokens are not checked against the API name', function () {
+    config(['ubo-auth.api' => 'api-maestros', 'ubo-auth.allow_user_tokens' => true]);
+
+    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer']))
+        ->getJson('/protected')->assertOk();
+});

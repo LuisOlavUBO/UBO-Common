@@ -81,13 +81,14 @@ final class JwtValidator implements TokenValidator
     }
 
     /**
-     * Passport claims: jti, aud = [client id], sub = user id (or the client id for
-     * client credentials tokens), scopes, exp.
+     * Passport claims: jti, aud = [client id] (plus the API name for tokens issued for
+     * one API), sub = user id (or the client id for client credentials tokens), scopes, exp.
      */
     private function toVerifiedToken(UnencryptedToken $jwt): VerifiedToken
     {
         $claims = $jwt->claims();
-        $clientId = $claims->get(RegisteredClaims::AUDIENCE)[0] ?? null;
+        $audiences = $claims->get(RegisteredClaims::AUDIENCE, []);
+        $clientId = $audiences[0] ?? null;
         $id = $claims->get(RegisteredClaims::ID);
         $subject = $claims->get(RegisteredClaims::SUBJECT);
         $scopes = $claims->get('scopes', []);
@@ -102,6 +103,7 @@ final class JwtValidator implements TokenValidator
             userId: VerifiedToken::userIdFromSubject($subject, $clientId),
             scopes: array_values(array_filter($scopes, 'is_string')),
             expiresAt: $claims->get(RegisteredClaims::EXPIRATION_TIME),
+            audiences: array_values(array_filter($audiences, 'is_string')),
         );
     }
 }

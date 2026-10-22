@@ -57,6 +57,14 @@ return [
     'allow_user_tokens' => (bool) env('UBO_AUTH_ALLOW_USER_TOKENS', false),
 
     /*
+    | Name of THIS API in API-Auth (e.g. "api-maestros"). When set, machine
+    | tokens must name it in their "aud" claim, so a token issued for another
+    | API is rejected even if it carries a scope with the same name. Leave it
+    | empty in applications that only call other APIs.
+    */
+    'api' => env('UBO_AUTH_API'),
+
+    /*
     | API-Auth public key (PEM text or path to a .pem/.key file). When empty it
     | is downloaded from API-Auth and cached.
     */

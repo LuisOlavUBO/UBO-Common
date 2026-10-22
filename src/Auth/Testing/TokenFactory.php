@@ -46,13 +46,14 @@ final class TokenFactory
     }
 
     /**
-     * Client credentials token, as API-Auth issues it (sub = client id).
+     * Client credentials token, as API-Auth issues it (sub = client id). It is issued for
+     * $api (added to "aud"); by default the API under test (ubo-auth.api), and "" for none.
      *
      * @param  list<string>  $scopes
      */
-    public function forClient(string $clientId, array $scopes = [], int $ttl = 3600): string
+    public function forClient(string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null): string
     {
-        return $this->issue($clientId, $clientId, $scopes, Date::now()->toDateTimeImmutable(), $ttl);
+        return $this->issue($clientId, $clientId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest());
     }
 
     /**
@@ -70,7 +71,7 @@ final class TokenFactory
      */
     public function expired(string $clientId, array $scopes = []): string
     {
-        return $this->issue($clientId, $clientId, $scopes, Date::now()->subHours(2)->toDateTimeImmutable(), 3600);
+        return $this->issue($clientId, $clientId, $scopes, Date::now()->subHours(2)->toDateTimeImmutable(), 3600, api: $this->apiUnderTest());
     }
 
     /**
@@ -80,7 +81,7 @@ final class TokenFactory
      */
     public function forged(string $clientId, array $scopes = []): string
     {
-        return $this->issue($clientId, $clientId, $scopes, Date::now()->toDateTimeImmutable(), 3600, 'unknown');
+        return $this->issue($clientId, $clientId, $scopes, Date::now()->toDateTimeImmutable(), 3600, 'unknown', $this->apiUnderTest());
     }
 
     /** Mark a token as revoked in API-Auth (seen by the introspection and hybrid strategies). */
@@ -94,6 +95,13 @@ final class TokenFactory
         return isset($this->revoked[$token]);
     }
 
+    private function apiUnderTest(): ?string
+    {
+        $api = config('ubo-auth.api');
+
+        return is_string($api) && $api !== '' ? $api : null;
+    }
+
     public function publicKey(): string
     {
         return (string) file_get_contents(__DIR__.'/keys/test-public.key');
@@ -102,10 +110,10 @@ final class TokenFactory
     /**
      * @param  list<string>  $scopes
      */
-    private function issue(string $clientId, string $subject, array $scopes, DateTimeImmutable $issuedAt, int $ttl, string $key = 'test'): string
+    private function issue(string $clientId, string $subject, array $scopes, DateTimeImmutable $issuedAt, int $ttl, string $key = 'test', ?string $api = null): string
     {
         return (new Builder(new JoseEncoder, ChainedFormatter::default()))
-            ->permittedFor($clientId)
+            ->permittedFor(...array_filter([$clientId, $api]))
             ->identifiedBy(Str::random(80))
             ->issuedAt($issuedAt)
             ->canOnlyBeUsedAfter($issuedAt)

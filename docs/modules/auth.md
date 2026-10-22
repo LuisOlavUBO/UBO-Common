@@ -13,6 +13,7 @@ Sistema ──GET + Bearer──────► API  ──► middleware ubo.au
 
 ```dotenv
 UBO_AUTH_URL=https://api-auth.ubo.cl
+UBO_AUTH_API=api-maestros        # nombre de esta API en API-Auth (oauth:api)
 UBO_AUTH_STRATEGY=hybrid
 UBO_AUTH_CLIENT_ID=<credencial de esta API en API-Auth>
 UBO_AUTH_CLIENT_SECRET=<secreto>
@@ -61,13 +62,25 @@ $token->expiresAt;         // DateTimeImmutable
 | 2 | Firma RS256 de API-Auth. Si falla, vuelve a descargar la clave una vez (rotación) | 401 |
 | 3 | Vigencia `exp`/`nbf`/`iat`, con `UBO_AUTH_LEEWAY` segundos de tolerancia | 401 |
 | 4 | Es un token M2M (salvo `UBO_AUTH_ALLOW_USER_TOKENS=true`) | 401 |
-| 5 | No está revocado (estrategias `introspection` y `hybrid`) | 401 |
-| 6 | Tiene todos los scopes de la ruta | 403 `InsufficientScope` |
+| 5 | Si hay `UBO_AUTH_API`: el token de sistema fue emitido para esta API (su nombre está en `aud`) | 401 |
+| 6 | No está revocado (estrategias `introspection` y `hybrid`) | 401 |
+| 7 | Tiene todos los scopes de la ruta | 403 `InsufficientScope` |
 | — | API-Auth no responde cuando hay que consultarlo | 503 `AuthServerUnavailable` |
 
 Las excepciones heredan de las de Laravel (`AuthenticationException` y `AuthorizationException`;
 `InsufficientScope::scopes()` devuelve los scopes faltantes), así que cada API las presenta con su
 propio formato de error.
+
+### Tokens emitidos para otra API
+
+API-Auth pone el nombre de la API en el `aud` de los tokens que emite para ella: `["<client id>", "api-maestros"]`.
+Con `UBO_AUTH_API=api-maestros`, el middleware rechaza los tokens de sistema que no nombran a esta API,
+aunque traigan un scope con el mismo nombre. Así, un token filtrado no sirve en otra API, sin depender de
+que los nombres de scope sean únicos. Sin `UBO_AUTH_API` no se revisa el `aud` (comportamiento de la 2.0).
+Los tokens de usuario no se revisan contra el nombre de la API.
+
+En los tests, `TokenFactory::forClient()` emite los tokens para la API configurada en `ubo-auth.api`.
+Para simular un token de otra API: `forClient('SIS', ['geografia:leer'], api: 'api-matricula')`; sin API: `api: ''`.
 
 **Importante:** si la API no fuerza respuestas JSON, Laravel intenta redirigir los 401 a la ruta
 `login`. En las APIs, haz que las rutas `api/*` respondan JSON (como ya hacen API-Auth y Maestros2).

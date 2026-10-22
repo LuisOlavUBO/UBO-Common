@@ -9,6 +9,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-22
+
+### Fixed
+
+- **Auth**: `TokenFactory::forUser()` también emite los tokens para la API configurada en
+  `ubo-auth.api` (y acepta `api:`). Con `UBO_AUTH_API` definida, un token de sistema simulado con un
+  `sub` que solo difiere en mayúsculas del client id era rechazado en los tests por `wrong_audience`.
+
 ## [2.1.0] - 2026-10-22
 
 Versión MINOR: compatible con la 2.0. Para rechazar tokens emitidos para otra API hace falta la

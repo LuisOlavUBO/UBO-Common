@@ -74,14 +74,15 @@ test('user tokens are rejected unless allowed', function () {
     $this->withToken($token)->getJson('/protected')->assertOk();
 });
 
-test('a machine token whose sub differs only in case from the client id is still a machine token', function () {
+test('a machine token whose sub differs only in case from the client id is still a machine token', function (?string $api) {
     // SQL Server returns GUID client ids in upper case; Passport copies that value to "sub".
+    config(['ubo-auth.api' => $api]);
     $token = $this->tokens->forUser('01A15F76-9829-7298-85B5-FA625530D051', '01a15f76-9829-7298-85b5-fa625530d051', ['geografia:leer']);
 
     $this->withToken($token)->getJson('/protected')
         ->assertOk()
         ->assertJsonPath('client', '01a15f76-9829-7298-85b5-fa625530d051');
-});
+})->with(['without API name' => [null], 'with API name' => ['api-maestros']]);
 
 test('a missing scope is rejected with 403 and reports the missing scopes', function () {
     $token = $this->tokens->forClient('SIS_SQLSRV', ['geografia:leer']);

@@ -57,13 +57,16 @@ final class TokenFactory
     }
 
     /**
-     * Token issued to a user through a client (password grant).
+     * Token issued to a user through a client (password grant), or any token with a custom
+     * "sub". Like forClient(), it is issued for $api (by default the API under test, "" for
+     * none), so a "sub" that only differs in case from the client id, which is a machine
+     * token, also passes the audience check.
      *
      * @param  list<string>  $scopes
      */
-    public function forUser(string $userId, string $clientId, array $scopes = [], int $ttl = 3600): string
+    public function forUser(string $userId, string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null): string
     {
-        return $this->issue($clientId, $userId, $scopes, Date::now()->toDateTimeImmutable(), $ttl);
+        return $this->issue($clientId, $userId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest());
     }
 
     /**

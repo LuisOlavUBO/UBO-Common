@@ -8,6 +8,13 @@ use UBO\Common\Auth\Infrastructure\Validators\IntrospectionValidator;
 use UBO\Common\Auth\Infrastructure\Validators\JwtValidator;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
+test('the passive modules are enabled and sqlserver is off by default', function () {
+    expect(config('ubo-problems.routes'))->toBe('api/*')
+        ->and(config()->has('ubo-health.connection'))->toBeTrue()
+        ->and(config('ubo-common.modules.sqlserver'))->toBeFalse()
+        ->and(config('ubo-sqlserver'))->toBeNull();
+});
+
 test('every module is enabled by default', function () {
     expect(app(Router::class)->getMiddleware())->toHaveKey('ubo.auth')
         ->and(app()->bound(ApiClientManager::class))->toBeTrue()

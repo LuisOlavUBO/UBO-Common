@@ -5,6 +5,9 @@ namespace UBO\Common;
 use Illuminate\Support\ServiceProvider;
 use UBO\Common\ApiClient\ApiClientServiceProvider;
 use UBO\Common\Auth\AuthServiceProvider;
+use UBO\Common\Health\HealthServiceProvider;
+use UBO\Common\Problems\ProblemsServiceProvider;
+use UBO\Common\SqlServer\SqlServerServiceProvider;
 use UBO\Common\Support\ModuleServiceProvider;
 use UBO\Common\Tracing\TracingServiceProvider;
 
@@ -24,6 +27,9 @@ final class UboCommonServiceProvider extends ServiceProvider
         'auth' => AuthServiceProvider::class,
         'api-client' => ApiClientServiceProvider::class,
         'tracing' => TracingServiceProvider::class,
+        'problems' => ProblemsServiceProvider::class,
+        'health' => HealthServiceProvider::class,
+        'sqlserver' => SqlServerServiceProvider::class,
     ];
 
     public function register(): void

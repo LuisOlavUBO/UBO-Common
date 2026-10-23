@@ -17,6 +17,15 @@
         <testsuite name="Tracing">
             <directory>tests/Tracing</directory>
         </testsuite>
+        <testsuite name="Problems">
+            <directory>tests/Problems</directory>
+        </testsuite>
+        <testsuite name="Health">
+            <directory>tests/Health</directory>
+        </testsuite>
+        <testsuite name="SqlServer">
+            <directory>tests/SqlServer</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

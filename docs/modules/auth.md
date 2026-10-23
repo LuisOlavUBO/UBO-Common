@@ -69,7 +69,8 @@ $token->expiresAt;         // DateTimeImmutable
 
 Las excepciones heredan de las de Laravel (`AuthenticationException` y `AuthorizationException`;
 `InsufficientScope::scopes()` devuelve los scopes faltantes), así que cada API las presenta con su
-propio formato de error.
+propio formato de error. El módulo [Problems](problems.md) las presenta en RFC 9457 con los códigos
+`NO_AUTENTICADO`, `SCOPE_INSUFICIENTE` y `AUTENTICACION_NO_DISPONIBLE`.
 
 ### Tokens emitidos para otra API
 

@@ -41,15 +41,21 @@ No todos los módulos necesitan todas las carpetas: se crean solo las que se usa
 
 ## 3. Reglas de diseño
 
-1. **Todo en inglés**: clases, métodos, configuración y mensajes de excepción. Las aplicaciones
-   pueden estar en español.
+1. **Código en inglés**: clases, métodos, configuración, mensajes de excepción y de log. Las
+   aplicaciones pueden estar en español.
+   **Los textos que forman parte del contrato de las APIs van en español**, como el resto del
+   contrato (rutas, campos JSON): los códigos de error y el `title` y `detail` de las respuestas.
+   Son fijos en el código, no se traducen ni dependen de `APP_LOCALE`, y cambiarlos es un cambio
+   MAJOR. Ejemplo: `ProblemRenderer` responde `"error": "NO_AUTENTICADO"`, `"title": "No autenticado"`.
 2. **Los módulos no se conocen entre sí.** Si un módulo necesita algo de otro, depende de su
-   interfaz en `Contracts/`, nunca de una clase de `Infrastructure/`.
-   Ejemplo: `ApiClient` usa `Auth\Contracts\ServiceTokenProvider`.
+   interfaz en `Contracts/` (o de sus excepciones públicas en `Exceptions/`), nunca de una clase de
+   `Infrastructure/`. Ejemplos: `ApiClient` usa `Auth\Contracts\ServiceTokenProvider`; `Problems`
+   reconoce `Auth\Exceptions\AuthServerUnavailable`.
 3. **Las aplicaciones dependen de contratos**, y el `ServiceProvider` decide qué implementación
    entregar según la configuración. Ejemplo: `UBO_AUTH_STRATEGY` elige el `TokenValidator`.
-4. **Sin formato propio de errores.** Se lanzan excepciones estándar de Laravel o del módulo, y cada
-   aplicación las presenta a su manera. Ejemplo: `InvalidToken` hereda de `AuthenticationException`.
+4. **Los módulos no responden errores.** Se lanzan excepciones estándar de Laravel o del módulo, y la
+   aplicación decide cómo presentarlas (por ejemplo, registrando `ProblemRenderer` del módulo
+   `Problems`). Ejemplo: `InvalidToken` hereda de `AuthenticationException`.
 5. **Toda la configuración tiene un valor por defecto razonable** y se puede cambiar por `.env`.
 6. **Cada módulo trae su ayuda de testing**, para que las aplicaciones prueben sin servicios externos.
    Ejemplos: `TokenFactory::fake()` y `UboApi::fake()`.
@@ -89,12 +95,12 @@ No todos los módulos necesitan todas las carpetas: se crean solo las que se usa
 
 ## 6. Candidatos a próximos módulos
 
-Duplicaciones detectadas al revisar API-Auth y API-Maestros2:
+Duplicaciones detectadas al revisar API-Auth y API-Maestros2. Se mueven a Common cuando las usa una
+segunda aplicación:
 
 | Módulo | Qué contendría | Hoy está en |
 |---|---|---|
-| `SqlServer` | `SET DATEFORMAT ymd` al abrir conexiones `sqlsrv` | API-Auth y Maestros2 (`AppServiceProvider`) |
-| `Problems` | Respuestas de error RFC 9457 con código estable en `error` | Maestros2 (`RenderizadorProblemas`) |
 | `Responses` | Formato `{data, meta}` | Maestros2 (`ApiResource`, `ApiCollection`) |
 | `HttpCache` | ETag y caché versionada por dominio | Maestros2 (`CacheHttp`, `VersionCacheDominio`) |
-| `Health` | Endpoint de salud y verificadores | Maestros2 (`SaludController`) |
+
+`SqlServer`, `Problems` y `Health` ya son módulos (versión 2.3.0).

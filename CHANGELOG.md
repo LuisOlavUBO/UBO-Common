@@ -9,6 +9,39 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-23
+
+Versión MINOR: compatible con la 2.2. Agrega tres módulos que hoy están duplicados en API-Auth y
+API-Maestros. `Problems` y `Health` vienen activados pero son pasivos (no hacen nada hasta que la
+aplicación los usa); `SqlServer` viene apagado. Las aplicaciones no tienen que cambiar nada.
+
+### Added
+
+- **Problems**: módulo nuevo. `ProblemRenderer` presenta los errores de las rutas `api/*` en RFC 9457
+  (`application/problem+json`) con un código estable en `error` (`NO_AUTENTICADO`,
+  `SCOPE_INSUFICIENTE`, `ACCESO_DENEGADO`, `VALIDACION`, `LIMITE_EXCEDIDO`, `RUTA_NO_ENCONTRADA`,
+  `METODO_NO_PERMITIDO`, `AUTENTICACION_NO_DISPONIBLE`, `ERROR_HTTP`, `ERROR_INTERNO`), con los mismos
+  títulos y detalles que responden hoy las APIs. Se registra en `bootstrap/app.php` con
+  `$exceptions->render(new ProblemRenderer)`. Se configura con `UBO_COMMON_PROBLEMS` y
+  `UBO_PROBLEMS_ROUTES`.
+- **Problems**: `DomainProblem`, clase base de los errores de negocio (`code()`, `status()`,
+  `title()`, `extensions()`), y `Problem`, para que una aplicación arme con la misma forma los errores
+  que el renderizador no conoce.
+- **Health**: módulo nuevo. `HealthController` responde `{"estado":"OK","base_datos":"OK"}` o 503
+  `{"estado":"ERROR","base_datos":"NO_DISPONIBLE"}` según `DatabaseHealth`. La aplicación agrega la
+  ruta. Se configura con `UBO_COMMON_HEALTH` y `UBO_HEALTH_CONNECTION`.
+- **SqlServer**: módulo nuevo, **apagado por defecto**. Con `UBO_COMMON_SQLSERVER=true` ejecuta
+  `SET DATEFORMAT ymd` en cada conexión `sqlsrv` al abrirse y en las que ya estaban abiertas. El
+  formato se cambia con `UBO_SQLSERVER_DATE_FORMAT`.
+- Dependencias `illuminate/auth`, `illuminate/database`, `illuminate/translation` e
+  `illuminate/validation`.
+
+### Changed
+
+- `docs/framework.md`: los textos que forman parte del contrato de las APIs (códigos de error,
+  `title` y `detail`) van en español; la regla del inglés aplica al código, la configuración y los
+  mensajes de excepción y de log. `Responses` y `HttpCache` siguen como candidatos.
+
 ## [2.2.0] - 2026-10-23
 
 Versión MINOR: compatible con la 2.1. Agrega el módulo `Tracing`, activado por defecto; las

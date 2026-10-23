@@ -12,6 +12,7 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Auth\Exceptions\ServiceTokenException;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
  * Client credentials grant against API-Auth (POST /oauth/token). One cached token per
@@ -26,6 +27,7 @@ final class HttpServiceTokenProvider implements ServiceTokenProvider
         private readonly AuthSettings $settings,
         private readonly HttpFactory $http,
         CacheFactory $cache,
+        private readonly ?TraceContext $trace = null,
     ) {
         $this->cache = $cache->store($settings->cacheStore);
     }
@@ -72,6 +74,7 @@ final class HttpServiceTokenProvider implements ServiceTokenProvider
                 ->timeout($this->settings->timeout)
                 ->acceptJson()
                 ->asForm()
+                ->withHeaders($this->trace?->headers() ?? [])
                 ->post($this->settings->endpoint('token'), array_filter([
                     'grant_type' => 'client_credentials',
                     'client_id' => $this->settings->clientId,

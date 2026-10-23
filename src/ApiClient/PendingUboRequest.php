@@ -11,10 +11,11 @@ use Throwable;
 use UBO\Common\ApiClient\Exceptions\UboApiException;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Auth\Exceptions\ServiceTokenException;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
- * A request to one UBO API, preconfigured with its base URL, timeouts, headers and an
- * API-Auth token. Any configuration method of Laravel's HTTP client can be chained
+ * A request to one UBO API, preconfigured with its base URL, timeouts, headers, an
+ * API-Auth token and the current trace (when the tracing module is enabled). Any configuration method of Laravel's HTTP client can be chained
  * (withHeaders, withQueryParameters, asForm, attach, timeout...).
  *
  * @mixin PendingRequest
@@ -29,12 +30,14 @@ abstract class PendingUboRequest
         protected readonly ApiDefinition $api,
         HttpFactory $http,
         private readonly ServiceTokenProvider $tokens,
+        ?TraceContext $trace = null,
     ) {
         $this->request = $http->baseUrl($api->url)
             ->acceptJson()
             ->timeout($api->timeout)
             ->connectTimeout($api->connectTimeout)
-            ->withHeaders($api->headers);
+            ->withHeaders($api->headers)
+            ->withHeaders($trace?->headers() ?? []);
     }
 
     /**

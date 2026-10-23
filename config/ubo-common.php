@@ -16,6 +16,7 @@ return [
     'modules' => [
         'auth' => (bool) env('UBO_COMMON_AUTH', true),
         'api-client' => (bool) env('UBO_COMMON_API_CLIENT', true),
+        'tracing' => (bool) env('UBO_COMMON_TRACING', true),
     ],
 
 ];

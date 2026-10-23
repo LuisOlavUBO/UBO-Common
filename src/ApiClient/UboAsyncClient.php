@@ -5,6 +5,7 @@ namespace UBO\Common\ApiClient;
 use Closure;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
  * Asynchronous call to a UBO API: each verb starts the request at once and returns a
@@ -26,9 +27,9 @@ final class UboAsyncClient extends PendingUboRequest
     /** @var callable Guzzle handler shared by every async request, like Laravel's Http::pool(). */
     private $handler;
 
-    public function __construct(ApiDefinition $api, HttpFactory $http, ServiceTokenProvider $tokens, callable $handler)
+    public function __construct(ApiDefinition $api, HttpFactory $http, ServiceTokenProvider $tokens, callable $handler, ?TraceContext $trace = null)
     {
-        parent::__construct($api, $http, $tokens);
+        parent::__construct($api, $http, $tokens, $trace);
 
         $this->handler = $handler;
     }

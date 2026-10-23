@@ -6,10 +6,13 @@ use UBO\Common\Auth\Contracts\TokenValidator;
 use UBO\Common\Auth\Infrastructure\Validators\HybridValidator;
 use UBO\Common\Auth\Infrastructure\Validators\IntrospectionValidator;
 use UBO\Common\Auth\Infrastructure\Validators\JwtValidator;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 test('every module is enabled by default', function () {
     expect(app(Router::class)->getMiddleware())->toHaveKey('ubo.auth')
         ->and(app()->bound(ApiClientManager::class))->toBeTrue()
+        ->and(app()->bound(TraceContext::class))->toBeTrue()
+        ->and(config('ubo-tracing.response_header'))->toBe('X-Trace-Id')
         ->and(config('ubo-auth.strategy'))->toBe('hybrid')
         ->and(config('ubo-apis.defaults.retries'))->toBe(2);
 });

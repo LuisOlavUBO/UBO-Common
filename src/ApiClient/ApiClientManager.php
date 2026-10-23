@@ -9,6 +9,7 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\Response;
 use LogicException;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
  * Builds clients for any UBO API: the caller gives the API's name in API-Auth and its
@@ -34,14 +35,14 @@ final class ApiClientManager
      */
     public function call(string $api, ?string $url): UboClient
     {
-        return new UboClient($this->definition($api, $url), $this->http, $this->tokens());
+        return new UboClient($this->definition($api, $url), $this->http, $this->tokens(), $this->trace());
     }
 
     public function callAsync(string $api, ?string $url): UboAsyncClient
     {
         $this->asyncHandler ??= Utils::chooseHandler();
 
-        return new UboAsyncClient($this->definition($api, $url), $this->http, $this->tokens(), $this->asyncHandler);
+        return new UboAsyncClient($this->definition($api, $url), $this->http, $this->tokens(), $this->asyncHandler, $this->trace());
     }
 
     /**
@@ -110,5 +111,13 @@ final class ApiClientManager
         }
 
         return $this->container->make(ServiceTokenProvider::class);
+    }
+
+    /**
+     * The current trace, or null when the tracing module is disabled.
+     */
+    private function trace(): ?TraceContext
+    {
+        return $this->container->bound(TraceContext::class) ? $this->container->make(TraceContext::class) : null;
     }
 }

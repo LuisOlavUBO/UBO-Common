@@ -8,6 +8,7 @@ dentro de cada aplicación (`vendor/ubo/common`) y corre en su mismo proceso.
 |---|---|---|---|
 | `Auth` | APIs (ej. Maestros2) | Validar los tokens que emite **API-Auth** con el middleware `ubo.auth` | [docs/modules/auth.md](docs/modules/auth.md) |
 | `ApiClient` | Sistemas consumidores (y APIs que llaman a otras) | Llamar a las APIs de la UBO sin manejar tokens: `UboApi::call()` / `callAsync()` | [docs/modules/api-client.md](docs/modules/api-client.md) |
+| `Tracing` | Todas las aplicaciones | Seguir una llamada por todos los servicios que recorre (W3C `traceparent`, `trace_id` en los logs) | [docs/modules/tracing.md](docs/modules/tracing.md) |
 
 Reglas para agregar módulos nuevos: [docs/framework.md](docs/framework.md).
 
@@ -43,6 +44,7 @@ a la aplicación y modificarlo:
 php artisan vendor:publish --tag=ubo-common-config   # módulos activos
 php artisan vendor:publish --tag=ubo-auth-config     # módulo Auth
 php artisan vendor:publish --tag=ubo-apis-config     # timeouts y reintentos del módulo ApiClient
+php artisan vendor:publish --tag=ubo-tracing-config  # módulo Tracing
 ```
 
 ## Uso rápido
@@ -74,10 +76,12 @@ $comunas = UboApi::call('api-maestros', config('services.maestros.url'))
 | `UBO_AUTH_PUBLIC_KEY` | Auth | Clave pública fija (PEM o ruta). Vacío: se descarga de API-Auth |
 | `UBO_AUTH_ALLOW_USER_TOKENS` | Auth | `false` por defecto: solo tokens M2M |
 | `UBO_AUTH_API` | Auth | Nombre de esta API en API-Auth. Rechaza tokens de sistema emitidos para otra API |
-| `UBO_COMMON_AUTH` / `UBO_COMMON_API_CLIENT` | — | Activar o desactivar cada módulo (`true` por defecto) |
+| `UBO_TRACING_RESPONSE_HEADER` | Tracing | Header de respuesta con el `trace_id` (`X-Trace-Id` por defecto; vacío: no se envía) |
+| `UBO_TRACING_TRUST_INCOMING` | Tracing | `true` por defecto: continúa la traza de quien llama |
+| `UBO_COMMON_AUTH` / `UBO_COMMON_API_CLIENT` / `UBO_COMMON_TRACING` | — | Activar o desactivar cada módulo (`true` por defecto) |
 
 El resto de los ajustes (TTL de caché, timeouts, reintentos...) está comentado en
-`src/Auth/config/ubo-auth.php` y `src/ApiClient/config/ubo-apis.php`.
+`src/Auth/config/ubo-auth.php`, `src/ApiClient/config/ubo-apis.php` y `src/Tracing/config/ubo-tracing.php`.
 
 ## Desarrollo de la librería
 

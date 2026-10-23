@@ -9,6 +9,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-23
+
+Versión MINOR: compatible con la 2.1. Agrega el módulo `Tracing`, activado por defecto; las
+aplicaciones no tienen que cambiar nada.
+
+### Added
+
+- **Tracing**: módulo nuevo con W3C Trace Context. Un middleware global continúa el `traceparent` de
+  quien llama (o empieza una traza nueva si no viene o es inválido), deja `trace_id`, `span_id` y
+  `parent_span_id` en el `Context` de Laravel (aparecen en los logs y viajan con los jobs) y devuelve
+  el `trace_id` en el header `X-Trace-Id`. Se configura con `UBO_COMMON_TRACING`,
+  `UBO_TRACING_RESPONSE_HEADER` y `UBO_TRACING_TRUST_INCOMING`.
+- **Tracing**: contrato `TraceContext` (`traceId()`, `spanId()`, `headers()`).
+- **ApiClient**: las llamadas de `UboApi::call()` y `callAsync()` envían `traceparent`, con el span de
+  la petición actual como padre.
+- **Auth**: las llamadas a API-Auth (token, introspección y clave pública) envían `traceparent`.
+- Dependencia `illuminate/log`, donde vive `Context`.
+
 ## [2.1.1] - 2026-10-22
 
 ### Fixed

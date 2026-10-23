@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use UBO\Common\ApiClient\ApiClientServiceProvider;
 use UBO\Common\Auth\AuthServiceProvider;
 use UBO\Common\Support\ModuleServiceProvider;
+use UBO\Common\Tracing\TracingServiceProvider;
 
 /**
  * Package entry point (auto-discovered by Laravel). Registers only the modules
@@ -22,6 +23,7 @@ final class UboCommonServiceProvider extends ServiceProvider
     public const MODULES = [
         'auth' => AuthServiceProvider::class,
         'api-client' => ApiClientServiceProvider::class,
+        'tracing' => TracingServiceProvider::class,
     ];
 
     public function register(): void

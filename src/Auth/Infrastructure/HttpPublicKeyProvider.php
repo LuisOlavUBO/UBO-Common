@@ -9,6 +9,7 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\PublicKeyProvider;
 use UBO\Common\Auth\Exceptions\AuthServerUnavailable;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
  * Downloads API-Auth's public key (GET /api/v1/auth/public-key) and caches it.
@@ -24,6 +25,7 @@ final class HttpPublicKeyProvider implements PublicKeyProvider
         private readonly AuthSettings $settings,
         private readonly HttpFactory $http,
         CacheFactory $cache,
+        private readonly ?TraceContext $trace = null,
     ) {
         $this->cache = $cache->store($settings->cacheStore);
     }
@@ -50,7 +52,10 @@ final class HttpPublicKeyProvider implements PublicKeyProvider
             ?? throw new AuthServerUnavailable('UBO_AUTH_URL is not configured.');
 
         try {
-            $response = $this->http->timeout($this->settings->timeout)->get($url);
+            $response = $this->http
+                ->timeout($this->settings->timeout)
+                ->withHeaders($this->trace?->headers() ?? [])
+                ->get($url);
         } catch (ConnectionException $e) {
             throw new AuthServerUnavailable('Could not download the API-Auth public key.', $e);
         }

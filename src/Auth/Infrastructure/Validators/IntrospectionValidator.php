@@ -16,6 +16,7 @@ use UBO\Common\Auth\Domain\VerifiedToken;
 use UBO\Common\Auth\Exceptions\AuthServerUnavailable;
 use UBO\Common\Auth\Exceptions\InvalidToken;
 use UBO\Common\Auth\Exceptions\ServiceTokenException;
+use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
  * Asks API-Auth whether a token is active (POST /api/v1/auth/introspect), authenticating
@@ -34,6 +35,7 @@ final class IntrospectionValidator implements TokenValidator
         private readonly ServiceTokenProvider $serviceTokens,
         private readonly ClockInterface $clock,
         CacheFactory $cache,
+        private readonly ?TraceContext $trace = null,
     ) {
         $this->cache = $cache->store($settings->cacheStore);
     }
@@ -113,6 +115,7 @@ final class IntrospectionValidator implements TokenValidator
         return $this->http
             ->timeout($this->settings->timeout)
             ->acceptJson()
+            ->withHeaders($this->trace?->headers() ?? [])
             ->withToken($this->serviceTokens->token([self::SCOPE]))
             ->post($url, ['token' => $token]);
     }

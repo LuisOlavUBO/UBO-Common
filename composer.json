@@ -4,13 +4,14 @@
     "description": "UBO.Common: shared building blocks for UBO Laravel APIs and their consumers.",
     "type": "library",
     "license": "proprietary",
-    "keywords": ["ubo", "laravel", "oauth2", "m2m", "api-client"],
+    "keywords": ["ubo", "laravel", "oauth2", "m2m", "api-client", "tracing"],
     "require": {
         "php": "^8.3",
         "guzzlehttp/guzzle": "^7.8|^8.0",
         "illuminate/cache": "^12.0|^13.0",
         "illuminate/console": "^12.0|^13.0",
         "illuminate/http": "^12.0|^13.0",
+        "illuminate/log": "^12.0|^13.0",
         "illuminate/support": "^12.0|^13.0",
         "lcobucci/jwt": "^5.3",
         "psr/clock": "^1.0"

@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Http;
 use UBO\Common\Tests\TestCase;
 
-pest()->extend(TestCase::class)->in('Support', 'Auth', 'ApiClient');
+pest()->extend(TestCase::class)->in('Support', 'Auth', 'ApiClient', 'Tracing');
 
 /*
 | A fake API-Auth token endpoint answering client credentials requests.

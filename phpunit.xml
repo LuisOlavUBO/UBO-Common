@@ -14,6 +14,9 @@
         <testsuite name="ApiClient">
             <directory>tests/ApiClient</directory>
         </testsuite>
+        <testsuite name="Tracing">
+            <directory>tests/Tracing</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

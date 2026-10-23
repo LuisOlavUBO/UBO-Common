@@ -35,15 +35,26 @@ final class HttpPublicKeyProvider implements PublicKeyProvider
         return $this->cache->remember($this->key(), $this->settings->publicKeyTtl, fn () => $this->download());
     }
 
+    /**
+     * The cached key is replaced only after the new one is downloaded: if API-Auth is
+     * down, the key that already works is kept and the caller treats the token as
+     * badly signed, instead of every request failing until API-Auth comes back.
+     */
     public function refresh(): ?string
     {
         if (! $this->cache->add($this->key().':refreshed', true, self::REFRESH_COOLDOWN)) {
             return null;
         }
 
-        $this->cache->forget($this->key());
+        try {
+            $key = $this->download();
+        } catch (AuthServerUnavailable) {
+            return null;
+        }
 
-        return $this->get();
+        $this->cache->put($this->key(), $key, $this->settings->publicKeyTtl);
+
+        return $key;
     }
 
     private function download(): string

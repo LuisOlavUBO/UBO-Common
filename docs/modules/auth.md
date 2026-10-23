@@ -59,7 +59,7 @@ $token->expiresAt;         // DateTimeImmutable
 | Paso | Revisión | Si falla |
 |---|---|---|
 | 1 | Viene `Authorization: Bearer <token>` | 401 `InvalidToken` |
-| 2 | Firma RS256 de API-Auth. Si falla, vuelve a descargar la clave una vez (rotación) | 401 |
+| 2 | Firma RS256 de API-Auth. Si falla, vuelve a descargar la clave una vez por minuto como máximo (rotación). Si API-Auth no responde, conserva la clave en caché | 401 |
 | 3 | Vigencia `exp`/`nbf`/`iat`, con `UBO_AUTH_LEEWAY` segundos de tolerancia | 401 |
 | 4 | Es un token M2M (salvo `UBO_AUTH_ALLOW_USER_TOKENS=true`) | 401 |
 | 5 | Si hay `UBO_AUTH_API`: el token de sistema fue emitido para esta API (su nombre está en `aud`) | 401 |

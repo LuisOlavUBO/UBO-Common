@@ -9,6 +9,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-23
+
+Versión PATCH: compatible con la 2.3. Las aplicaciones solo tienen que ejecutar
+`composer update ubo/common`.
+
+### Fixed
+
+- **Auth**: con la estrategia `jwt` o `hybrid`, un token con una firma inválida que llegaba mientras
+  API-Auth no respondía borraba de la caché la clave pública que funcionaba. Desde ese momento todos
+  los tokens válidos recibían `503 AuthServerUnavailable` hasta que API-Auth volvía. Ahora
+  `HttpPublicKeyProvider::refresh()` reemplaza la clave solo cuando la nueva se descargó bien; si la
+  descarga falla, conserva la anterior y el token con firma inválida se rechaza con `401`, como con
+  API-Auth disponible.
+
 ## [2.3.0] - 2026-10-23
 
 Versión MINOR: compatible con la 2.2. Agrega tres módulos que hoy están duplicados en API-Auth y

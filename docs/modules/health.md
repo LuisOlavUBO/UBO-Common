@@ -4,7 +4,7 @@ El endpoint de salud que exponen las APIs de la UBO para los orquestadores, bala
 healthchecks de nginx. Revisa que la base de datos responda a un `SELECT 1`.
 
 ```
-GET /api/v1/salud   (sin autenticación)
+GET /api/<nombre>/v1/salud   (sin autenticación; por ejemplo /api/maestros/v1/salud)
 
 200 {"estado":"OK","base_datos":"OK"}
 503 {"estado":"ERROR","base_datos":"NO_DISPONIBLE"}
@@ -17,7 +17,8 @@ El módulo es **pasivo**: no registra rutas.
 
 ## 1. Instalación en la API
 
-En `routes/api.php`, fuera de cualquier middleware de autenticación:
+En `routes/api.php`, fuera de cualquier middleware de autenticación. La API publica sus rutas bajo
+`/api/<nombre>` (`apiPrefix` en `bootstrap/app.php`), así que `v1/salud` queda en `/api/<nombre>/v1/salud`:
 
 ```php
 use UBO\Common\Health\Http\Controllers\HealthController;
@@ -50,5 +51,5 @@ use UBO\Common\Health\DatabaseHealth;
 
 $this->mock(DatabaseHealth::class)->shouldReceive('isAvailable')->andReturnFalse();
 
-$this->getJson('/api/v1/salud')->assertStatus(503);
+$this->getJson('/api/maestros/v1/salud')->assertStatus(503);
 ```

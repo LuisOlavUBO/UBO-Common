@@ -65,7 +65,7 @@ final class ApiClientManager
     /**
      * Fake API-Auth and the UBO APIs in tests. Keys start with the API name:
      *
-     *     UboApi::fake(['api-maestros/api/v1/geografia/*' => ['data' => [...]]]);
+     *     UboApi::fake(['api-maestros/api/maestros/v1/geografia/*' => ['data' => [...]]]);
      *
      * Calls to an API named in the keys go to a fake host, whatever URL they pass (it may
      * even be unset). Keys that start with http:// or https:// are passed to Http::fake()

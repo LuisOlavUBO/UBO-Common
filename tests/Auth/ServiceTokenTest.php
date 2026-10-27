@@ -46,7 +46,7 @@ test('a token for an API asks API-Auth for that API and is cached apart', functi
 });
 
 test('the hint from API-Auth is part of the error', function () {
-    Http::fake(['https://api-auth.test/oauth/token' => Http::response([
+    Http::fake(['https://api-auth.test/api/auth/oauth/token' => Http::response([
         'error' => 'invalid_scope',
         'error_description' => 'The requested scope is invalid, unknown, or malformed',
         'hint' => 'Check the `bancos:escribir` scope',
@@ -56,7 +56,7 @@ test('the hint from API-Auth is part of the error', function () {
 })->throws(ServiceTokenException::class, 'malformed. Check the `bancos:escribir` scope.');
 
 test('it is renewed shortly before it expires', function () {
-    Http::fake(['https://api-auth.test/oauth/token' => Http::sequence()
+    Http::fake(['https://api-auth.test/api/auth/oauth/token' => Http::sequence()
         ->push(['access_token' => 'first', 'expires_in' => 3600])
         ->push(['access_token' => 'second', 'expires_in' => 3600])]);
     $tokens = app(ServiceTokenProvider::class);
@@ -69,7 +69,7 @@ test('it is renewed shortly before it expires', function () {
 });
 
 test('forget drops the cached token', function () {
-    Http::fake(['https://api-auth.test/oauth/token' => Http::sequence()
+    Http::fake(['https://api-auth.test/api/auth/oauth/token' => Http::sequence()
         ->push(['access_token' => 'first', 'expires_in' => 3600])
         ->push(['access_token' => 'second', 'expires_in' => 3600])]);
     $tokens = app(ServiceTokenProvider::class);
@@ -81,7 +81,7 @@ test('forget drops the cached token', function () {
 });
 
 test('a rejected request explains why', function () {
-    Http::fake(['https://api-auth.test/oauth/token' => Http::response([
+    Http::fake(['https://api-auth.test/api/auth/oauth/token' => Http::response([
         'error' => 'invalid_scope',
         'error_description' => 'The requested scope is invalid.',
     ], 400)]);

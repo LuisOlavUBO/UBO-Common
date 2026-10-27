@@ -125,7 +125,7 @@ Diferencias con lo que respondía cada API:
 En los tests de la aplicación basta revisar el código:
 
 ```php
-$this->getJson('/api/v1/regiones/99')
+$this->getJson('/api/maestros/v1/geografia/regiones/99')
     ->assertNotFound()
     ->assertHeader('Content-Type', 'application/problem+json')
     ->assertJsonPath('error', 'NO_ENCONTRADO');

@@ -12,7 +12,7 @@ use UBO\Common\Auth\Exceptions\ServiceTokenException;
  * Synchronous call to a UBO API: each verb returns a successful Response or throws
  * UboApiException.
  *
- *     $comunas = UboApi::call('api-maestros', $url)->get('/api/v1/geografia/regiones/13/comunas')->json('data');
+ *     $comunas = UboApi::call('api-maestros', $url)->get('/api/maestros/v1/geografia/regiones/13/comunas')->json('data');
  *
  * @method Response get(string $path, array|string|null $query = null)
  * @method Response head(string $path, array|string|null $query = null)

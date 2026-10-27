@@ -8,7 +8,7 @@ token a API-Auth, lo cachea, lo renueva, reintenta y convierte los errores.
 use UBO\Common\ApiClient\UboApi;
 
 $comunas = UboApi::call('api-maestros', config('services.maestros.url'))
-    ->get('/api/v1/geografia/regiones/13/comunas')
+    ->get('/api/maestros/v1/geografia/regiones/13/comunas')
     ->json('data');
 ```
 
@@ -57,9 +57,9 @@ quedan los valores por defecto de todas las llamadas: `timeout`, `connect_timeou
 ## 2. Llamadas síncronas: `call`
 
 ```php
-UboApi::call('api-maestros', $url)->get('/api/v1/geografia/paises');                        // GET
-UboApi::call('api-maestros', $url)->get('/api/v1/geografia/paises', ['incluir_inactivos' => 1]); // query
-UboApi::call('api-maestros', $url)->post('/api/v1/homologaciones/traducir-lote', [...]);     // POST JSON
+UboApi::call('api-maestros', $url)->get('/api/maestros/v1/geografia/paises');                        // GET
+UboApi::call('api-maestros', $url)->get('/api/maestros/v1/geografia/paises', ['incluir_inactivos' => 1]); // query
+UboApi::call('api-maestros', $url)->post('/api/maestros/v1/homologaciones/traducir-lote', [...]);     // POST JSON
 UboApi::call('api-maestros', $url)->put(...); ->patch(...); ->delete(...); ->head(...);
 ```
 
@@ -77,7 +77,7 @@ UboApi::call('api-maestros', $url)->put(...); ->patch(...); ->delete(...); ->hea
 de C#. `wait()` espera el resultado, como `await`.
 
 ```php
-$promise = UboApi::callAsync('api-maestros', $url)->get('/api/v1/geografia/paises');
+$promise = UboApi::callAsync('api-maestros', $url)->get('/api/maestros/v1/geografia/paises');
 // ... otro trabajo ...
 $paises = $promise->wait()->json('data');
 ```
@@ -86,8 +86,8 @@ Varias llamadas **en paralelo**: el tiempo total es el de la más lenta, no la s
 
 ```php
 ['paises' => $paises, 'comunas' => $comunas] = UboApi::all([
-    'paises' => UboApi::callAsync('api-maestros', $url)->get('/api/v1/geografia/paises'),
-    'comunas' => UboApi::callAsync('api-maestros', $url)->get('/api/v1/geografia/regiones/13/comunas'),
+    'paises' => UboApi::callAsync('api-maestros', $url)->get('/api/maestros/v1/geografia/paises'),
+    'comunas' => UboApi::callAsync('api-maestros', $url)->get('/api/maestros/v1/geografia/regiones/13/comunas'),
 ]);
 ```
 
@@ -114,7 +114,7 @@ Varias llamadas **en paralelo**: el tiempo total es el de la más lenta, no la s
 use UBO\Common\ApiClient\Exceptions\UboApiException;
 
 try {
-    UboApi::call('api-maestros', $url)->get('/api/v1/geografia/comunas/99999');
+    UboApi::call('api-maestros', $url)->get('/api/maestros/v1/geografia/comunas/99999');
 } catch (UboApiException $e) {
     $e->api;                  // 'api-maestros'
     $e->status;               // 404 (null si no hubo respuesta)
@@ -139,8 +139,8 @@ use Illuminate\Support\Facades\Http;
 use UBO\Common\ApiClient\UboApi;
 
 UboApi::fake([
-    'api-maestros/api/v1/geografia/*' => ['data' => [['cut' => '13101', 'nombre' => 'Santiago']]],
-    'api-maestros/api/v1/sistemas/*' => Http::response(['error' => 'NO_ENCONTRADO'], 404),
+    'api-maestros/api/maestros/v1/geografia/*' => ['data' => [['cut' => '13101', 'nombre' => 'Santiago']]],
+    'api-maestros/api/maestros/v1/sistemas/*' => Http::response(['error' => 'NO_ENCONTRADO'], 404),
 ]);
 ```
 

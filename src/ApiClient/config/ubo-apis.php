@@ -10,7 +10,7 @@ return [
     | The API itself is given on each call, with its name in API-Auth and its
     | URL (kept in the calling application's own config):
     |
-    |     UboApi::call('api-maestros', config('services.maestros.url'))->get('/api/v1/geografia/paises');
+    |     UboApi::call('api-maestros', config('services.maestros.url'))->get('/api/maestros/v1/geografia/paises');
     |
     | timeout / connect_timeout: seconds.
     | retries: extra attempts after a connection error or a 5xx response on an

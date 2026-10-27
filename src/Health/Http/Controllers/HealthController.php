@@ -6,7 +6,7 @@ use Illuminate\Http\JsonResponse;
 use UBO\Common\Health\DatabaseHealth;
 
 /**
- * GET /api/v1/salud, without authentication, for orchestrators and load balancers.
+ * GET /api/<name>/v1/salud, without authentication, for orchestrators and load balancers.
  * The body is part of the UBO APIs' contract (nginx health checks read it).
  */
 final class HealthController

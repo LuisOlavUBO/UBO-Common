@@ -15,9 +15,9 @@ return [
     'url' => env('UBO_AUTH_URL'),
 
     'endpoints' => [
-        'token' => '/oauth/token',
-        'introspect' => '/api/v1/auth/introspect',
-        'public_key' => '/api/v1/auth/public-key',
+        'token' => '/api/auth/oauth/token',
+        'introspect' => '/api/auth/v1/introspect',
+        'public_key' => '/api/auth/v1/public-key',
     ],
 
     /*

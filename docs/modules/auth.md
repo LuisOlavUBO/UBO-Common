@@ -4,7 +4,7 @@ Permite que una API **confíe en los tokens que emite API-Auth** sin tener su pr
 API-Auth es el único que emite tokens; cada API solo los **valida**.
 
 ```
-Sistema ──POST /oauth/token──► API-Auth (firma el JWT con su clave privada)
+Sistema ──POST /api/auth/oauth/token──► API-Auth (firma el JWT con su clave privada)
 Sistema ──GET + Bearer──────► API  ──► middleware ubo.auth ──► reglas de la API ──► controlador
                                         (valida con la clave pública de API-Auth)
 ```
@@ -106,7 +106,7 @@ beforeEach(fn () => $this->tokens = TokenFactory::fake());
 test('un sistema con el scope accede', function () {
     $token = $this->tokens->forClient('client-id', ['geografia:leer']);
 
-    $this->withToken($token)->getJson('/api/v1/geografia/paises')->assertOk();
+    $this->withToken($token)->getJson('/api/maestros/v1/geografia/paises')->assertOk();
 });
 ```
 

@@ -10,7 +10,7 @@ dentro de cada aplicación (`vendor/ubo/common`) y corre en su mismo proceso.
 | `ApiClient` | Sistemas consumidores (y APIs que llaman a otras) | Llamar a las APIs de la UBO sin manejar tokens: `UboApi::call()` / `callAsync()` | [docs/modules/api-client.md](docs/modules/api-client.md) |
 | `Tracing` | Todas las aplicaciones | Seguir una llamada por todos los servicios que recorre (W3C `traceparent`, `trace_id` en los logs) | [docs/modules/tracing.md](docs/modules/tracing.md) |
 | `Problems` | APIs | Errores en RFC 9457 (`application/problem+json`) con código estable en `error`: `ProblemRenderer` y `DomainProblem` | [docs/modules/problems.md](docs/modules/problems.md) |
-| `Health` | APIs | Endpoint de salud `GET /api/v1/salud` que revisa la base de datos: `HealthController` | [docs/modules/health.md](docs/modules/health.md) |
+| `Health` | APIs | Endpoint de salud `GET /api/<nombre>/v1/salud` que revisa la base de datos: `HealthController` | [docs/modules/health.md](docs/modules/health.md) |
 | `SqlServer` | Aplicaciones con SQL Server | `SET DATEFORMAT ymd` en cada conexión `sqlsrv` (**apagado** por defecto) | [docs/modules/sqlserver.md](docs/modules/sqlserver.md) |
 
 Reglas para agregar módulos nuevos: [docs/framework.md](docs/framework.md).
@@ -68,7 +68,7 @@ use UBO\Common\ApiClient\UboApi;
 
 // nombre de la API en API-Auth + su URL (guardada en la config del propio sistema)
 $comunas = UboApi::call('api-maestros', config('services.maestros.url'))
-    ->get('/api/v1/geografia/regiones/13/comunas')
+    ->get('/api/maestros/v1/geografia/regiones/13/comunas')
     ->json('data');
 ```
 

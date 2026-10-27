@@ -12,7 +12,7 @@ use UBO\Common\Auth\Exceptions\AuthServerUnavailable;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
- * Downloads API-Auth's public key (GET /api/v1/auth/public-key) and caches it.
+ * Downloads API-Auth's public key (GET /api/auth/v1/public-key) and caches it.
  */
 final class HttpPublicKeyProvider implements PublicKeyProvider
 {

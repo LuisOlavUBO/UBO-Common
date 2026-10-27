@@ -15,7 +15,7 @@ use UBO\Common\Auth\Exceptions\ServiceTokenException;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
- * Client credentials grant against API-Auth (POST /oauth/token). One cached token per
+ * Client credentials grant against API-Auth (POST /api/auth/oauth/token). One cached token per
  * API and set of scopes, renewed shortly before it expires. A cache lock keeps
  * concurrent workers from requesting the same token at once.
  */

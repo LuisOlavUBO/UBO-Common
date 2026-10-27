@@ -7,11 +7,11 @@ use Illuminate\Support\Facades\Facade;
 /**
  * Entry point to call UBO APIs without handling tokens:
  *
- *     UboApi::call('api-maestros', $url)->get('/api/v1/geografia/regiones/13/comunas')->json('data');
+ *     UboApi::call('api-maestros', $url)->get('/api/maestros/v1/geografia/regiones/13/comunas')->json('data');
  *
  *     [$comunas, $paises] = UboApi::all([
- *         UboApi::callAsync('api-maestros', $url)->get('/api/v1/geografia/regiones/13/comunas'),
- *         UboApi::callAsync('api-maestros', $url)->get('/api/v1/geografia/paises'),
+ *         UboApi::callAsync('api-maestros', $url)->get('/api/maestros/v1/geografia/regiones/13/comunas'),
+ *         UboApi::callAsync('api-maestros', $url)->get('/api/maestros/v1/geografia/paises'),
  *     ]);
  *
  * @method static UboClient call(string $api, ?string $url)

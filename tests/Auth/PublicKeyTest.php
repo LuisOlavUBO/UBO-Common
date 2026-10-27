@@ -15,7 +15,7 @@ beforeEach(function () {
 });
 
 test('without a configured key it is downloaded from API-Auth and cached', function () {
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::response($this->testKey)]);
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::response($this->testKey)]);
 
     expect(app(PublicKeyProvider::class))->toBeInstanceOf(HttpPublicKeyProvider::class)
         ->and(app(PublicKeyProvider::class)->get())->toBe($this->testKey)
@@ -35,7 +35,7 @@ test('a key fixed in config is used without network calls', function () {
 });
 
 test('a valid token is accepted with the downloaded key', function () {
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::response($this->testKey)]);
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::response($this->testKey)]);
     $token = (new TokenFactory)->forClient('SIS_SQLSRV', ['geografia:leer']);
 
     expect(app(TokenValidator::class)->validate($token)->clientId)->toBe('SIS_SQLSRV');
@@ -46,7 +46,7 @@ test('after a key rotation the new key is downloaded once', function () {
         file_get_contents(__DIR__.'/../../src/Auth/Testing/keys/unknown-private.key')
     ))['key'];
 
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::sequence()
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::sequence()
         ->push($previousKey)
         ->push($this->testKey)]);
 
@@ -58,7 +58,7 @@ test('after a key rotation the new key is downloaded once', function () {
 });
 
 test('forged tokens cannot make it download the key more than once per minute', function () {
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::response($this->testKey)]);
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::response($this->testKey)]);
     $forged = (new TokenFactory)->forged('SIS_SQLSRV');
 
     foreach (range(1, 5) as $_) {
@@ -72,7 +72,7 @@ test('forged tokens cannot make it download the key more than once per minute', 
 });
 
 test('a forged token while API-Auth is down is an invalid token, not an unavailable server', function () {
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::sequence()
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::sequence()
         ->push($this->testKey)
         ->pushFailedConnection()]);
 
@@ -82,7 +82,7 @@ test('a forged token while API-Auth is down is an invalid token, not an unavaila
 })->throws(InvalidToken::class);
 
 test('a failed refresh keeps the cached key, so valid tokens keep working while API-Auth is down', function () {
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::sequence()
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::sequence()
         ->push($this->testKey)
         ->push('', 500)
         ->pushFailedConnection()]);

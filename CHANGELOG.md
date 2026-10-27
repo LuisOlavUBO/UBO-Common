@@ -9,6 +9,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-27
+
+Versión MAJOR: requiere API-Auth 3.0.0, que publica todas sus rutas bajo `/api/auth`. Con API-Auth
+2.x los tokens y la validación fallan. Las aplicaciones actualizan `ubo/common` junto con el
+despliegue de API-Auth 3.0.0; `UBO_AUTH_URL` sigue siendo solo el host de API-Auth y no cambia.
+
+### Changed
+
+- **Auth**: las rutas por defecto de `ubo-auth.endpoints` pasan a las de API-Auth 3.0.0:
+  `token` `/oauth/token` → `/api/auth/oauth/token`, `introspect` `/api/v1/auth/introspect` →
+  `/api/auth/v1/introspect` y `public_key` `/api/v1/auth/public-key` → `/api/auth/v1/public-key`.
+  Una aplicación que publicó `config/ubo-auth.php` tiene que actualizar esas rutas a mano.
+- **Docs**: los ejemplos usan las URLs con el nombre de la API (`/api/maestros/v1/...`), y el módulo
+  Health documenta `v1/salud` bajo el prefijo de cada API (`/api/<nombre>/v1/salud`).
+
 ## [2.3.1] - 2026-10-23
 
 Versión PATCH: compatible con la 2.3. Las aplicaciones solo tienen que ejecutar

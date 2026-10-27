@@ -26,7 +26,7 @@ function activeIntrospection(): array
 test('an active token is accepted and mapped', function () {
     Http::fake([
         ...fakeTokenEndpoint('maestros-own-token'),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::response(activeIntrospection()),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response(activeIntrospection()),
     ]);
 
     $token = app(TokenValidator::class)->validate('opaque-token');
@@ -35,11 +35,11 @@ test('an active token is accepted and mapped', function () {
         ->and($token->isMachineToken())->toBeTrue()
         ->and($token->scopes)->toBe(['geografia:leer', 'sistemas:leer']);
 
-    Http::assertSent(fn (Request $r) => $r->url() === 'https://api-auth.test/api/v1/auth/introspect'
+    Http::assertSent(fn (Request $r) => $r->url() === 'https://api-auth.test/api/auth/v1/introspect'
         && $r->hasHeader('Authorization', 'Bearer maestros-own-token')
         && $r['token'] === 'opaque-token');
 
-    Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/oauth/token')
+    Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/api/auth/oauth/token')
         && $r['grant_type'] === 'client_credentials'
         && $r['scope'] === 'introspect');
 });
@@ -47,7 +47,7 @@ test('an active token is accepted and mapped', function () {
 test('a sub equal to the client id (any case) means a machine token', function (string $sub) {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::response([
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response([
             ...activeIntrospection(),
             'client_id' => '01A15F76-9829-7298-85B5-FA625530D051',
             'sub' => $sub,
@@ -66,7 +66,7 @@ test('a sub equal to the client id (any case) means a machine token', function (
 test('a sub different from the client id is a user', function () {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::response([...activeIntrospection(), 'sub' => '42']),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response([...activeIntrospection(), 'sub' => '42']),
     ]);
 
     expect(app(TokenValidator::class)->validate('opaque-token')->userId)->toBe('42');
@@ -75,7 +75,7 @@ test('a sub different from the client id is a user', function () {
 test('an inactive token is rejected', function () {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::response(['active' => false]),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response(['active' => false]),
     ]);
 
     app(TokenValidator::class)->validate('revoked-token');
@@ -84,7 +84,7 @@ test('an inactive token is rejected', function () {
 test('results are cached, so API-Auth is asked once per token', function () {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::response(activeIntrospection()),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response(activeIntrospection()),
     ]);
 
     app(TokenValidator::class)->validate('opaque-token');
@@ -96,7 +96,7 @@ test('results are cached, so API-Auth is asked once per token', function () {
 test('a revocation is noticed once the cache entry expires', function () {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::sequence()
+        'https://api-auth.test/api/auth/v1/introspect' => Http::sequence()
             ->push(activeIntrospection())
             ->push(['active' => false]),
     ]);
@@ -110,10 +110,10 @@ test('a revocation is noticed once the cache entry expires', function () {
 
 test('if its own token is rejected it renews it once', function () {
     Http::fake([
-        'https://api-auth.test/oauth/token' => Http::sequence()
+        'https://api-auth.test/api/auth/oauth/token' => Http::sequence()
             ->push(['access_token' => 'old', 'expires_in' => 3600])
             ->push(['access_token' => 'new', 'expires_in' => 3600]),
-        'https://api-auth.test/api/v1/auth/introspect' => fn (Request $r) => $r->hasHeader('Authorization', 'Bearer new')
+        'https://api-auth.test/api/auth/v1/introspect' => fn (Request $r) => $r->hasHeader('Authorization', 'Bearer new')
             ? Http::response(activeIntrospection())
             : Http::response(['message' => 'Unauthenticated.'], 401),
     ]);
@@ -124,7 +124,7 @@ test('if its own token is rejected it renews it once', function () {
 test('API-Auth unreachable fails closed with 503', function () {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::failedConnection(),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::failedConnection(),
     ]);
 
     app(TokenValidator::class)->validate('opaque-token');
@@ -140,7 +140,7 @@ test('missing client credentials fail closed with 503', function () {
 test('the audience reported by API-Auth is kept, so the middleware can check it', function () {
     Http::fake([
         ...fakeTokenEndpoint(),
-        'https://api-auth.test/api/v1/auth/introspect' => Http::response([
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response([
             ...activeIntrospection(),
             'aud' => ['SIS_SQLSRV', 'api-maestros'],
         ]),

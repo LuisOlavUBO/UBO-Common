@@ -75,8 +75,8 @@ test('calls to other APIs continue the trace with this request as parent', funct
     Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => Http::response(['data' => []])]);
 
     Route::get('/calls-maestros', function () {
-        UboApi::call('api-maestros', 'https://maestros.test')->get('/api/v1/geografia/paises');
-        UboApi::callAsync('api-maestros', 'https://maestros.test')->get('/api/v1/sistemas')->wait();
+        UboApi::call('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises');
+        UboApi::callAsync('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/sistemas')->wait();
 
         return ['span_id' => Context::get('span_id')];
     });
@@ -86,11 +86,11 @@ test('calls to other APIs continue the trace with this request as parent', funct
 
     Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/geografia/paises') && $r->header('traceparent') === [$expected]);
     Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/sistemas') && $r->header('traceparent') === [$expected]);
-    Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/oauth/token') && $r->header('traceparent') === [$expected]);
+    Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/api/auth/oauth/token') && $r->header('traceparent') === [$expected]);
 });
 
 test('downloading the API-Auth public key joins the trace', function () {
-    Http::fake(['https://api-auth.test/api/v1/auth/public-key' => Http::response("-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----")]);
+    Http::fake(['https://api-auth.test/api/auth/v1/public-key' => Http::response("-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----")]);
 
     app(TraceContext::class)->begin(CALLER_TRACEPARENT);
     app(PublicKeyProvider::class)->get();
@@ -101,7 +101,7 @@ test('downloading the API-Auth public key joins the trace', function () {
 test('outside a request the trace starts on the first call', function () {
     Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => Http::response(['data' => []])]);
 
-    UboApi::call('api-maestros', 'https://maestros.test')->get('/api/v1/geografia/paises');
+    UboApi::call('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises');
 
     $trace = app(TraceContext::class);
 
@@ -134,7 +134,7 @@ test('with the module disabled nothing is traced and calls still work', function
         ->assertExactJson(['trace_id' => null])
         ->assertHeaderMissing('X-Trace-Id');
 
-    UboApi::call('api-maestros', 'https://maestros.test')->get('/api/v1/geografia/paises');
+    UboApi::call('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises');
 
     expect(app()->bound(TraceContext::class))->toBeFalse();
     Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/geografia/paises') && ! $r->hasHeader('traceparent'));

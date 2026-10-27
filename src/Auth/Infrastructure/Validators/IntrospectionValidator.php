@@ -19,7 +19,7 @@ use UBO\Common\Auth\Exceptions\ServiceTokenException;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
- * Asks API-Auth whether a token is active (POST /api/v1/auth/introspect), authenticating
+ * Asks API-Auth whether a token is active (POST /api/auth/v1/introspect), authenticating
  * with this application's own token (scope "introspect"). Results are cached for
  * ubo-auth.cache.introspection_ttl seconds, which bounds how late a revocation is noticed.
  */

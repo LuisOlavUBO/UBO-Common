@@ -10,7 +10,7 @@ pest()->extend(TestCase::class)->in('Support', 'Auth', 'ApiClient', 'Tracing', '
 */
 function fakeTokenEndpoint(string $token = 'service-token', int $expiresIn = 3600): array
 {
-    return ['https://api-auth.test/oauth/token' => Http::response([
+    return ['https://api-auth.test/api/auth/oauth/token' => Http::response([
         'token_type' => 'Bearer',
         'expires_in' => $expiresIn,
         'access_token' => $token,

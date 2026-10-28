@@ -10,6 +10,7 @@ use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\Token\Builder;
+use LogicException;
 use UBO\Common\Auth\AuthServiceProvider;
 use UBO\Common\Auth\Infrastructure\Validators\JwtValidator;
 
@@ -30,6 +31,11 @@ final class TokenFactory
      */
     public static function fake(): self
     {
+        // Production would then trust a key anyone with the package can sign with.
+        if (app()->isProduction()) {
+            throw new LogicException('TokenFactory::fake() trusts the public test key and cannot be used in production.');
+        }
+
         $factory = new self;
 
         config([

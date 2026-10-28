@@ -14,8 +14,10 @@ return [
     |
     | timeout / connect_timeout: seconds.
     | retries: extra attempts after a connection error or a 5xx response on an
-    |          idempotent method (GET, HEAD, PUT, DELETE, OPTIONS). A 401 always
-    |          gets one extra attempt with a renewed token, on top of these.
+    |          idempotent method (GET, HEAD, PUT, DELETE, OPTIONS). POST and PATCH
+    |          are only retried when the connection was never established, so a
+    |          read timeout never sends them twice. A 401 always gets one extra
+    |          attempt with a renewed token, on top of these.
     | retry_delay: milliseconds, multiplied by the attempt number.
     |
     */

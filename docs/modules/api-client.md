@@ -105,7 +105,10 @@ Varias llamadas **en paralelo**: el tiempo total es el de la más lenta, no la s
 3. **401**: descarta el token, pide uno nuevo y reintenta una vez, sin espera.
 4. **Error de conexión**, o **5xx en un método idempotente** (GET, HEAD, PUT, DELETE, OPTIONS):
    reintenta hasta `retries` veces (2 por defecto), esperando `retry_delay` × intento ms.
-   POST y PATCH no se reintentan ante un 5xx, para no duplicar operaciones.
+   Para no duplicar operaciones, POST y PATCH no se reintentan ante un 5xx, y ante un error de
+   conexión solo se reintentan si la petición **no llegó a salir** (no resolvió el host, la conexión
+   fue rechazada, se agotó el tiempo de conexión o falló el handshake TLS). Un timeout de lectura en
+   un POST o PATCH lanza `UboApiException` de inmediato, porque la API pudo haberlo recibido.
 5. **4xx o 5xx final**: lanza `UboApiException`.
 
 ## 5. Errores

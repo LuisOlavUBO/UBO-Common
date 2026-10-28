@@ -61,6 +61,37 @@ test('async calls retry server errors on GET', function () {
     expect(UboApi::callAsync('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises')->wait()->json('data'))->toBe('ok');
 });
 
+// Laravel does not record failed async attempts, so these tests count the calls themselves.
+
+test('an async POST that timed out reading the response is not sent again', function () {
+    $attempts = 0;
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => function (Request $r) use (&$attempts) {
+        $attempts++;
+
+        return readTimeout()($r);
+    }]);
+
+    $promise = UboApi::callAsync('api-maestros', 'https://maestros.test')->post('/api/maestros/v1/homologaciones/traducir-lote', []);
+
+    expect(fn () => $promise->wait())->toThrow(UboApiException::class)
+        ->and($attempts)->toBe(1);
+});
+
+test('an async POST that could not connect is retried', function () {
+    $attempts = 0;
+    $respond = failThen(connectionRefused(), 1, ['data' => 'creado'], 201);
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => function (Request $r) use (&$attempts, $respond) {
+        $attempts++;
+
+        return $respond($r);
+    }]);
+
+    $promise = UboApi::callAsync('api-maestros', 'https://maestros.test')->post('/api/maestros/v1/homologaciones/traducir-lote', []);
+
+    expect($promise->wait()->status())->toBe(201)
+        ->and($attempts)->toBe(2);
+});
+
 test('async connection failures become UboApiException', function () {
     Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => Http::failedConnection()]);
 

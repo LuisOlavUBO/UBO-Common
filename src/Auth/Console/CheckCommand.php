@@ -8,6 +8,7 @@ use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\PublicKeyProvider;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Auth\Infrastructure\Validators\IntrospectionValidator;
+use UBO\Common\Auth\Testing\TestKey;
 
 /**
  * Diagnoses this application's connection with API-Auth: configuration, public key
@@ -33,6 +34,10 @@ final class CheckCommand extends Command
 
             if (openssl_pkey_get_public($key) === false) {
                 throw new \RuntimeException('the key is not a valid PEM public key');
+            }
+
+            if ($this->laravel->isProduction() && TestKey::isTestKey($key)) {
+                throw new \RuntimeException('it is the public test key of TokenFactory: every token is refused in production');
             }
         }) && $ok;
 

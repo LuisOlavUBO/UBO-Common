@@ -150,6 +150,18 @@ test('un sistema con el scope accede', function () {
 
 Los tokens pasan por los validadores reales. API-Auth no necesita estar levantado.
 
+**La clave de prueba nunca sirve en producción.** Las claves de `TokenFactory` vienen dentro del paquete
+y son públicas. Con `APP_ENV=production`:
+
+- Si la clave pública en uso es la de prueba, fijada en `UBO_AUTH_PUBLIC_KEY` o descargada de
+  API-Auth, **ningún token se acepta**: la respuesta es 503 `AUTENTICACION_NO_DISPONIBLE` y el motivo
+  queda en el log como `critical`.
+- `TokenFactory::fake()` lanza `LogicException`.
+- `php artisan ubo:auth:check` marca FAIL en la revisión de la clave pública.
+
+Fuera de producción (`testing`, `local`…) todo funciona igual. Los tests de la aplicación deben correr con
+`APP_ENV=testing`, como hacen API-Auth y Maestros2 en su `phpunit.xml`.
+
 ## 6. Token propio de la aplicación
 
 `ServiceTokenProvider` obtiene tokens de API-Auth para **esta** aplicación (client credentials), los

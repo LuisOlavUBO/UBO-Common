@@ -3,6 +3,7 @@
 namespace UBO\Common\Auth\Infrastructure\Validators;
 
 use DateInterval;
+use Illuminate\Contracts\Foundation\Application;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Exception as JwtException;
 use Lcobucci\JWT\Signer\Key\InMemory;
@@ -14,11 +15,14 @@ use Lcobucci\JWT\Validation\Constraint\SignedWith;
 use Lcobucci\JWT\Validation\Constraint\StrictValidAt;
 use Lcobucci\JWT\Validation\Validator;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\PublicKeyProvider;
 use UBO\Common\Auth\Contracts\TokenValidator;
 use UBO\Common\Auth\Domain\VerifiedToken;
+use UBO\Common\Auth\Exceptions\AuthServerUnavailable;
 use UBO\Common\Auth\Exceptions\InvalidToken;
+use UBO\Common\Auth\Testing\TestKey;
 
 /**
  * Validates API-Auth tokens locally: RS256 signature with API-Auth's public key and
@@ -31,17 +35,19 @@ final class JwtValidator implements TokenValidator
         private readonly PublicKeyProvider $keys,
         private readonly AuthSettings $settings,
         private readonly ClockInterface $clock,
+        private readonly Application $app,
+        private readonly LoggerInterface $log,
     ) {}
 
     public function validate(string $token): VerifiedToken
     {
         $jwt = $this->parse($token);
 
-        if (! $this->signedBy($jwt, $this->keys->get())) {
+        if (! $this->signedBy($jwt, $this->trusted($this->keys->get()))) {
             // API-Auth may have rotated its keys: retry once with a fresh copy.
             $fresh = $this->keys->refresh();
 
-            if ($fresh === null || ! $this->signedBy($jwt, $fresh)) {
+            if ($fresh === null || ! $this->signedBy($jwt, $this->trusted($fresh))) {
                 throw InvalidToken::badSignature();
             }
         }
@@ -72,6 +78,21 @@ final class JwtValidator implements TokenValidator
         }
 
         return $jwt;
+    }
+
+    /**
+     * The test key ships with the package and is public: in production a token it validates
+     * could be forged by anyone, so no token is accepted (fail closed, 503).
+     */
+    private function trusted(string $publicKey): string
+    {
+        if ($this->app->isProduction() && TestKey::isTestKey($publicKey)) {
+            $this->log->critical('UBO.Common refuses every token: the API-Auth public key in use is the public test key of TokenFactory. Configure the real key of API-Auth (UBO_AUTH_PUBLIC_KEY or the key API-Auth serves).');
+
+            throw new AuthServerUnavailable('The API-Auth public key in use is the test key.');
+        }
+
+        return $publicKey;
     }
 
     private function signedBy(UnencryptedToken $jwt, string $publicKey): bool

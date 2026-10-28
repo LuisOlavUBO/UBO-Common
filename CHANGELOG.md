@@ -9,6 +9,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+### Security
+
+- **Auth**: con `APP_ENV=production`, si la clave pública de API-Auth en uso es la clave de prueba de
+  `TokenFactory` (que viene en el paquete y es pública), ningún token se acepta: la respuesta es 503 y el
+  motivo queda en el log como `critical`. Se detecta tanto fijada en `UBO_AUTH_PUBLIC_KEY` como
+  descargada de API-Auth, con cualquier formato de saltos de línea. `TokenFactory::fake()` lanza
+  `LogicException` en producción, y `ubo:auth:check` marca la clave como FAIL. Fuera de producción no
+  cambia nada.
+
 ### Changed
 
 - **Auth**: las rutas de los endpoints de API-Auth las fija el paquete y la clave `endpoints` de un

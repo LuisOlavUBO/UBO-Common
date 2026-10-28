@@ -8,6 +8,7 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\Response;
 use LogicException;
+use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
@@ -80,7 +81,8 @@ final class ApiClientManager
         $this->config->set('ubo-auth.client_id', $this->config->get('ubo-auth.client_id') ?: 'fake-client');
         $this->config->set('ubo-auth.client_secret', $this->config->get('ubo-auth.client_secret') ?: 'fake-secret');
 
-        $tokenUrl = rtrim($this->config->get('ubo-auth.url'), '/').$this->config->get('ubo-auth.endpoints.token');
+        // The same URL the library asks tokens from, even with the auth module disabled.
+        $tokenUrl = AuthSettings::fromConfig((array) $this->config->get('ubo-auth', []))->endpoint('token');
 
         $fakes = [$tokenUrl => HttpFactory::response([
             'token_type' => 'Bearer',

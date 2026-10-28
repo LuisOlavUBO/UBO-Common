@@ -5,7 +5,7 @@ namespace UBO\Common\Support;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Base class for every UBO.Common module. It merges and publishes the module's
+ * Base class for every UBO.Common module. It merges (deeply) and publishes the module's
  * config file so each module only declares what is specific to it.
  *
  * A module lives in src/<Module>/ with its config at src/<Module>/config/<configName>.php
@@ -13,6 +13,8 @@ use Illuminate\Support\ServiceProvider;
  */
 abstract class ModuleServiceProvider extends ServiceProvider
 {
+    use MergesConfigDeeply;
+
     /** Config key and file name, e.g. "ubo-auth". */
     abstract protected function configName(): string;
 
@@ -27,7 +29,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
 
     final public function register(): void
     {
-        $this->mergeConfigFrom($this->configPath(), $this->configName());
+        $this->mergeConfigDeeplyFrom($this->configPath(), $this->configName());
 
         $this->registerModule();
     }

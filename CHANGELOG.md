@@ -9,7 +9,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+### Changed
+
+- **Auth**: las rutas de los endpoints de API-Auth las fija el paquete y la clave `endpoints` de un
+  `config/ubo-auth.php` publicado se ignora, para que una versión anterior del archivo no deje rutas
+  viejas. Para reemplazar una ruta se usan las variables nuevas `UBO_AUTH_ENDPOINT_TOKEN`,
+  `UBO_AUTH_ENDPOINT_INTROSPECT` y `UBO_AUTH_ENDPOINT_PUBLIC_KEY` (vacías, la ruta del paquete).
+
 ### Fixed
+
+- **Auth**: una variable definida vacía en el `.env` (por ejemplo `UBO_AUTH_TIMEOUT=`), un valor no
+  numérico o un `0` usan el valor por defecto. Antes quedaban en `0`: sin timeout hacia API-Auth, o una
+  descarga de la clave pública en cada petición. `UBO_AUTH_LEEWAY=0` sigue siendo válido.
+- **Config**: la configuración publicada de cualquier módulo se fusiona en profundidad con la del
+  paquete, así que un archivo publicado con una versión anterior recibe las claves anidadas nuevas (por
+  ejemplo `ubo-auth.cache.service_token_margin`). Las listas se reemplazan completas.
 
 - **ApiClient**: POST y PATCH ya no se reintentan ante un error de conexión cuando la conexión con la
   API llegó a establecerse (por ejemplo, un timeout de lectura), porque la API pudo haber recibido la

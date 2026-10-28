@@ -34,6 +34,36 @@ Para revisar que todo esté bien:
 php artisan ubo:auth:check
 ```
 
+### Valores vacíos
+
+Una variable definida sin valor en el `.env` (por ejemplo `UBO_AUTH_TIMEOUT=`) usa el valor por defecto,
+igual que si no existiera. También se usa el valor por defecto si el valor no es un número o es `0` o
+negativo:
+
+| Valor | Por defecto |
+|---|---|
+| `UBO_AUTH_TIMEOUT` | 5 s |
+| `UBO_AUTH_PUBLIC_KEY_TTL` | 86400 s |
+| `UBO_AUTH_INTROSPECTION_TTL` | 30 s |
+| `cache.service_token_margin` | 60 s |
+| `cache.prefix` | `ubo-auth:` |
+| `UBO_AUTH_STRATEGY` | `hybrid` (un valor desconocido sigue fallando) |
+| `UBO_AUTH_LEEWAY` | 10 s (acepta `0`: sin tolerancia) |
+
+### Rutas de API-Auth
+
+Las rutas de los endpoints las fija el paquete, relativas a `UBO_AUTH_URL`: `/api/auth/oauth/token`,
+`/api/auth/v1/introspect` y `/api/auth/v1/public-key`. Un `config/ubo-auth.php` publicado no las
+congela: su arreglo `endpoints` se ignora. Para reemplazar una ruta, solo si API-Auth la cambia:
+
+```dotenv
+UBO_AUTH_ENDPOINT_TOKEN=/api/auth/oauth/token
+UBO_AUTH_ENDPOINT_INTROSPECT=/api/auth/v1/introspect
+UBO_AUTH_ENDPOINT_PUBLIC_KEY=/api/auth/v1/public-key
+```
+
+Vacías, se usa la ruta del paquete.
+
 ## 2. Proteger rutas
 
 ```php

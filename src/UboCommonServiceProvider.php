@@ -8,6 +8,7 @@ use UBO\Common\Auth\AuthServiceProvider;
 use UBO\Common\Health\HealthServiceProvider;
 use UBO\Common\Problems\ProblemsServiceProvider;
 use UBO\Common\SqlServer\SqlServerServiceProvider;
+use UBO\Common\Support\MergesConfigDeeply;
 use UBO\Common\Support\ModuleServiceProvider;
 use UBO\Common\Tracing\TracingServiceProvider;
 
@@ -17,6 +18,8 @@ use UBO\Common\Tracing\TracingServiceProvider;
  */
 final class UboCommonServiceProvider extends ServiceProvider
 {
+    use MergesConfigDeeply;
+
     /**
      * Module catalog: config key => module service provider.
      * To add a module, create src/<Module> and register it here.
@@ -34,7 +37,7 @@ final class UboCommonServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/ubo-common.php', 'ubo-common');
+        $this->mergeConfigDeeplyFrom(__DIR__.'/../config/ubo-common.php', 'ubo-common');
 
         foreach (self::MODULES as $key => $provider) {
             if ($this->app['config']->get("ubo-common.modules.{$key}", true)) {

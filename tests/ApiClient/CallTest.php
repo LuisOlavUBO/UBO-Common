@@ -140,6 +140,54 @@ test('connection failures are retried and then reported', function () {
     Http::assertSentCount(4); // 1 token + 3 attempts
 });
 
+test('a POST that timed out reading the response is not sent again', function () {
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => readTimeout()]);
+
+    try {
+        UboApi::call('api-maestros', 'https://maestros.test')->post('/api/maestros/v1/homologaciones/traducir-lote', ['codigos' => ['1']]);
+        $this->fail('Expected UboApiException');
+    } catch (UboApiException $e) {
+        expect($e->isConnectionError())->toBeTrue();
+    }
+
+    Http::assertSentCount(2); // 1 token + 1 call
+});
+
+test('a POST that could not connect is retried', function () {
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => failThen(connectionRefused(), 1, ['data' => 'creado'], 201)]);
+
+    $response = UboApi::call('api-maestros', 'https://maestros.test')->post('/api/maestros/v1/homologaciones/traducir-lote', ['codigos' => ['1']]);
+
+    expect($response->status())->toBe(201);
+    Http::assertSentCount(3); // 1 token + 2 attempts
+});
+
+test('a PATCH that timed out connecting is retried up to the configured number', function () {
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => connectTimeout()]);
+
+    expect(fn () => UboApi::call('api-maestros', 'https://maestros.test')->patch('/api/maestros/v1/sistemas/SIS', ['nombre' => 'x']))
+        ->toThrow(UboApiException::class);
+
+    Http::assertSentCount(4); // 1 token + 3 attempts
+});
+
+test('a POST whose connection error cannot be classified is not sent again', function () {
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => unclassifiedConnectionError()]);
+
+    expect(fn () => UboApi::call('api-maestros', 'https://maestros.test')->post('/api/maestros/v1/homologaciones/traducir-lote', []))
+        ->toThrow(UboApiException::class);
+
+    Http::assertSentCount(2); // 1 token + 1 call
+});
+
+test('a GET that timed out reading the response is still retried', function () {
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => failThen(readTimeout(), 1, ['data' => 'ok'])]);
+
+    expect(UboApi::call('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises')->json('data'))->toBe('ok');
+
+    Http::assertSentCount(3); // 1 token + 2 attempts
+});
+
 test('if API-Auth refuses the token the API is never called', function () {
     Http::fake([
         'https://api-auth.test/api/auth/oauth/token' => Http::response(['error' => 'invalid_client'], 401),

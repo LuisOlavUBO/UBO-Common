@@ -9,6 +9,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+### Fixed
+
+- **ApiClient**: POST y PATCH ya no se reintentan ante un error de conexión cuando la conexión con la
+  API llegó a establecerse (por ejemplo, un timeout de lectura), porque la API pudo haber recibido la
+  petición y el reintento duplicaba la operación. Se siguen reintentando si la petición no llegó a
+  salir (host no resuelto, conexión rechazada, timeout de conexión o fallo del handshake TLS). Los
+  métodos idempotentes no cambian.
+
 ## [3.0.0] - 2026-10-27
 
 Versión MAJOR: requiere API-Auth 3.0.0, que publica todas sus rutas bajo `/api/auth`. Con API-Auth

@@ -53,7 +53,9 @@ abstract class PendingUboRequest
     /**
      * A copy of the configured request with a token and the retry policy:
      * - 401: renew the token once and retry immediately.
-     * - connection error, or 5xx on an idempotent method: retry up to $api->retries times.
+     * - connection error on an idempotent method, or on any method when the connection was
+     *   never established, or 5xx on an idempotent method: retry up to $api->retries times.
+     *   POST and PATCH are not retried once the API may have received them (e.g. a read timeout).
      */
     protected function prepare(): PendingRequest
     {
@@ -77,9 +79,10 @@ abstract class PendingUboRequest
                 return true;
             }
 
-            $transient = $e instanceof ConnectionException
-                || ($e instanceof RequestException && $e->response->serverError()
-                    && in_array(strtoupper((string) $method), self::IDEMPOTENT_METHODS, true));
+            $idempotent = in_array(strtoupper((string) $method), self::IDEMPOTENT_METHODS, true);
+
+            $transient = ($e instanceof ConnectionException && ($idempotent || ConnectionFailure::neverConnected($e)))
+                || ($e instanceof RequestException && $e->response->serverError() && $idempotent);
 
             return $transient && $retriesLeft-- > 0;
         };

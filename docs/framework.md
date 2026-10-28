@@ -57,6 +57,10 @@ No todos los módulos necesitan todas las carpetas: se crean solo las que se usa
    aplicación decide cómo presentarlas (por ejemplo, registrando `ProblemRenderer` del módulo
    `Problems`). Ejemplo: `InvalidToken` hereda de `AuthenticationException`.
 5. **Toda la configuración tiene un valor por defecto razonable** y se puede cambiar por `.env`.
+   El valor por defecto también se aplica en el código (en los `*Settings`), no solo en `env()`: una
+   variable definida vacía (`UBO_AUTH_TIMEOUT=`) usa el valor por defecto en vez de `0` o `''`.
+   La configuración publicada se fusiona en profundidad con la del paquete: un archivo publicado con
+   una versión anterior recibe las claves anidadas nuevas, y las listas se reemplazan completas.
 6. **Cada módulo trae su ayuda de testing**, para que las aplicaciones prueben sin servicios externos.
    Ejemplos: `TokenFactory::fake()` y `UboApi::fake()`.
 7. **Bindings no singleton** cuando dependen de la configuración, para que un cambio de configuración

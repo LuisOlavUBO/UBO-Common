@@ -7,6 +7,28 @@ namespace UBO\Common\Auth;
  */
 final readonly class AuthSettings
 {
+    /** API-Auth's routes, relative to its URL. Only UBO_AUTH_ENDPOINT_* can replace them. */
+    private const ENDPOINTS = [
+        'token' => '/api/auth/oauth/token',
+        'introspect' => '/api/auth/v1/introspect',
+        'public_key' => '/api/auth/v1/public-key',
+    ];
+
+    // Defaults when a value is missing, empty or out of range (same as config/ubo-auth.php).
+    private const STRATEGY = 'hybrid';
+
+    private const LEEWAY = 10;
+
+    private const CACHE_PREFIX = 'ubo-auth:';
+
+    private const PUBLIC_KEY_TTL = 86400;
+
+    private const INTROSPECTION_TTL = 30;
+
+    private const SERVICE_TOKEN_MARGIN = 60;
+
+    private const TIMEOUT = 5;
+
     /**
      * @param  array{token: string, introspect: string, public_key: string}  $endpoints
      */
@@ -33,23 +55,60 @@ final readonly class AuthSettings
      */
     public static function fromConfig(array $config): self
     {
+        $cache = (array) ($config['cache'] ?? []);
+        $overrides = (array) ($config['endpoint_overrides'] ?? []);
+
         return new self(
             url: filled($config['url'] ?? null) ? rtrim($config['url'], '/') : null,
-            endpoints: $config['endpoints'],
+            endpoints: self::endpoints($overrides),
             clientId: filled($config['client_id'] ?? null) ? (string) $config['client_id'] : null,
             clientSecret: filled($config['client_secret'] ?? null) ? (string) $config['client_secret'] : null,
-            strategy: (string) $config['strategy'],
-            allowUserTokens: (bool) $config['allow_user_tokens'],
+            strategy: self::filledString($config['strategy'] ?? null, self::STRATEGY),
+            allowUserTokens: (bool) ($config['allow_user_tokens'] ?? false),
             api: filled($config['api'] ?? null) ? (string) $config['api'] : null,
             publicKey: filled($config['public_key'] ?? null) ? (string) $config['public_key'] : null,
-            leeway: (int) $config['leeway'],
-            cacheStore: $config['cache']['store'] ?? null,
-            cachePrefix: (string) $config['cache']['prefix'],
-            publicKeyTtl: (int) $config['cache']['public_key_ttl'],
-            introspectionTtl: (int) $config['cache']['introspection_ttl'],
-            serviceTokenMargin: (int) $config['cache']['service_token_margin'],
-            timeout: (int) $config['timeout'],
+            leeway: self::nonNegativeInt($config['leeway'] ?? null, self::LEEWAY),
+            cacheStore: filled($cache['store'] ?? null) ? (string) $cache['store'] : null,
+            cachePrefix: self::filledString($cache['prefix'] ?? null, self::CACHE_PREFIX),
+            publicKeyTtl: self::positiveInt($cache['public_key_ttl'] ?? null, self::PUBLIC_KEY_TTL),
+            introspectionTtl: self::positiveInt($cache['introspection_ttl'] ?? null, self::INTROSPECTION_TTL),
+            serviceTokenMargin: self::positiveInt($cache['service_token_margin'] ?? null, self::SERVICE_TOKEN_MARGIN),
+            timeout: self::positiveInt($config['timeout'] ?? null, self::TIMEOUT),
         );
+    }
+
+    /**
+     * The package's routes, each replaced by its UBO_AUTH_ENDPOINT_* override when set. A
+     * published "endpoints" array is ignored, so the routes never freeze in an old file.
+     *
+     * @param  array<array-key, mixed>  $overrides
+     * @return array{token: string, introspect: string, public_key: string}
+     */
+    private static function endpoints(array $overrides): array
+    {
+        $endpoints = self::ENDPOINTS;
+
+        foreach ($endpoints as $name => $path) {
+            $endpoints[$name] = self::filledString($overrides[$name] ?? null, $path);
+        }
+
+        return $endpoints;
+    }
+
+    /** A whole number above zero, or $default (empty "UBO_X=" in the .env reads as ""). */
+    private static function positiveInt(mixed $value, int $default): int
+    {
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : $default;
+    }
+
+    private static function nonNegativeInt(mixed $value, int $default): int
+    {
+        return is_numeric($value) && (int) $value >= 0 ? (int) $value : $default;
+    }
+
+    private static function filledString(mixed $value, string $default): string
+    {
+        return is_scalar($value) && trim((string) $value) !== '' ? (string) $value : $default;
     }
 
     /** Absolute URL of an API-Auth endpoint ("token", "introspect" or "public_key"). */

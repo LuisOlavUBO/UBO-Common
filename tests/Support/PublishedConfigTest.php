@@ -75,3 +75,18 @@ test('a published ubo-common without a module switch gets the package default fo
         ->and(config('ubo-common.modules.tracing'))->toBeTrue()
         ->and(app()->getProviders(SqlServerServiceProvider::class))->toBe([]);
 });
+
+test('a ubo-auth published with 3.0.0 gets the circuit breaker defaults and the degraded mode off', function () {
+    TestCase::$bootConfig = [
+        'ubo-auth.timeout' => 5,
+        'ubo-auth.cache.prefix' => 'ubo-auth:',
+    ];
+    $this->refreshApplication();
+
+    $settings = app(AuthSettings::class);
+
+    expect($settings->circuitFailures)->toBe(5)
+        ->and($settings->circuitCooldown)->toBe(30)
+        ->and($settings->connectTimeout)->toBe(2)
+        ->and($settings->degradedMode)->toBeFalse();
+});

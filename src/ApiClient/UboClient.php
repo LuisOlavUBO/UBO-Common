@@ -25,16 +25,22 @@ final class UboClient extends PendingUboRequest
 {
     protected function run(Closure $send): Response
     {
-        $request = $this->prepare();
+        $budget = $this->budget();
+        $this->guardCircuit();
+        $request = $this->prepare($budget);
 
         try {
             $response = $send($request);
         } catch (ConnectionException $e) {
-            throw UboApiException::connection($this->api->name, $e);
+            throw $this->failure(UboApiException::connection($this->api->name, $e), $budget);
         } catch (ServiceTokenException $e) {
             throw UboApiException::authentication($this->api->name, $e);
         }
 
-        return ResultGuard::verify($this->api->name, $response);
+        try {
+            return ResultGuard::verify($this->api->name, $response);
+        } catch (UboApiException $e) {
+            throw $this->failure($e, $budget);
+        }
     }
 }

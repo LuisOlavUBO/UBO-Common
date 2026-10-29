@@ -18,8 +18,34 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   `LogicException` en producción, y `ubo:auth:check` marca la clave como FAIL. Fuera de producción no
   cambia nada.
 
+### Added
+
+- **Auth**: circuit breaker hacia API-Auth. Tras `UBO_AUTH_CIRCUIT_FAILURES` (5) fallos seguidos
+  (error de conexión, timeout o 5xx) no se llama a API-Auth durante `UBO_AUTH_CIRCUIT_COOLDOWN` (30)
+  segundos: la validación responde 503 de inmediato en vez de dejar los workers esperando, y después
+  una sola petición prueba si volvió. El estado vive en `UBO_AUTH_CACHE_STORE` (conviene un almacén
+  compartido). `ubo:auth:check` muestra el estado del circuito y llama a API-Auth aunque esté abierto.
+- **Auth**: token propio de reserva. Si al renovar un token en caché API-Auth no responde, se sigue
+  usando el token vigente hasta que vence; un rechazo (4xx) sigue fallando.
+- **Auth**: modo degradado opcional (`UBO_AUTH_DEGRADED_MODE`, apagado por defecto). Con `hybrid`, si la
+  introspección no responde, se aceptan los tokens que pasaron la validación local y queda un `warning`
+  en el log. Mientras dura la caída no se detectan revocaciones.
+- **ApiClient**: tiempo total por llamada (`deadline`, 30 s) que incluye reintentos, renovación del
+  token y esperas; se fija para una llamada con `->deadline($segundos)`. Al agotarse, la excepción
+  responde `isDeadlineExceeded()`.
+- **ApiClient**: circuit breaker por API. Tras 5 intentos seguidos fallidos (error de conexión, timeout o
+  5xx), las llamadas a esa API fallan de inmediato durante 30 s, sin pedir token ni enviar nada
+  (`isCircuitOpen()`); otras APIs no se afectan. Se configura en `circuit_breaker` y su estado vive en
+  `ubo-apis.cache_store` (`UBO_APIS_CACHE_STORE`). `UboApi::fake()` parte con los circuitos cerrados.
+- **ApiClient**: valores por API en `ubo-apis.apis.<nombre>`, sobre los de `defaults`.
+
 ### Changed
 
+- **Auth**: las llamadas a API-Auth usan un timeout de conexión de `UBO_AUTH_CONNECT_TIMEOUT` (2 s),
+  además del timeout total, así que un host que no acepta conexiones falla a los 2 s.
+- **ApiClient**: la espera entre reintentos pasa de `retry_delay` × intento a exponencial
+  (`retry_delay` × 2^(n-1), con tope `retry_max_delay`, 2000 ms) y con variación aleatoria entre la
+  mitad y el total, para que varios procesos no reintenten al mismo tiempo.
 - **Auth**: las rutas de los endpoints de API-Auth las fija el paquete y la clave `endpoints` de un
   `config/ubo-auth.php` publicado se ignora, para que una versión anterior del archivo no deje rutas
   viejas. Para reemplazar una ruta se usan las variables nuevas `UBO_AUTH_ENDPOINT_TOKEN`,

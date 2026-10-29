@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use UBO\Common\ApiClient\ApiClientManager;
 use UBO\Common\ApiClient\Exceptions\UboApiException;
 use UBO\Common\ApiClient\UboApi;
 use UBO\Common\Tests\TestCase;
@@ -48,4 +49,17 @@ test('fake works without any configuration (consumer test suites)', function () 
     UboApi::fake(['api-maestros/*' => ['data' => 'ok']]);
 
     expect(UboApi::callAsync('api-maestros', config('services.maestros.url'))->get('/api/maestros/v1/geografia/paises')->wait()->json('data'))->toBe('ok');
+});
+
+test('fake starts with every circuit closed', function () {
+    $manager = app(ApiClientManager::class);
+    $circuit = $manager->circuit($manager->definition('api-maestros', 'https://maestros.test'));
+
+    for ($i = 0; $i < 5; $i++) {
+        $circuit->recordFailure();
+    }
+
+    UboApi::fake(['api-maestros/*' => ['data' => 'ok']]);
+
+    expect(UboApi::call('api-maestros', null)->get('/api/maestros/v1/geografia/paises')->json('data'))->toBe('ok');
 });

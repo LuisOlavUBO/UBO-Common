@@ -54,6 +54,24 @@ function unclassifiedConnectionError(): Closure
 }
 
 /*
+| A read timeout that, like a real one, takes the attempt's whole timeout (moves the clock).
+| $timeouts, when given, collects the timeout of each attempt, rounded because a few real
+| milliseconds pass during the test.
+*/
+function slowTimeout(?array &$timeouts = null): Closure
+{
+    return function (Request $request, array $options) use (&$timeouts) {
+        if ($timeouts !== null) {
+            $timeouts[] = round((float) $options['timeout']);
+        }
+
+        test()->travel((int) ceil($options['timeout']))->seconds();
+
+        return readTimeout()($request);
+    };
+}
+
+/*
 | Fails the first $failures calls with $failure, then answers $response.
 */
 function failThen(Closure $failure, int $failures, array $body = [], int $status = 200): Closure

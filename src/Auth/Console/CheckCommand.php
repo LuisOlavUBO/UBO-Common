@@ -7,12 +7,14 @@ use Throwable;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\PublicKeyProvider;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
+use UBO\Common\Auth\Infrastructure\ApiAuthClient;
 use UBO\Common\Auth\Infrastructure\Validators\IntrospectionValidator;
 use UBO\Common\Auth\Testing\TestKey;
 
 /**
  * Diagnoses this application's connection with API-Auth: configuration, public key
- * and (when credentials are set) its own client credentials token.
+ * and (when credentials are set) its own client credentials token. Its calls always reach
+ * API-Auth, even with the circuit open, and never change the circuit.
  */
 final class CheckCommand extends Command
 {
@@ -20,7 +22,26 @@ final class CheckCommand extends Command
 
     protected $description = 'Check the configuration and connection with API-Auth';
 
-    public function handle(AuthSettings $settings, PublicKeyProvider $keys, ServiceTokenProvider $tokens): int
+    public function handle(AuthSettings $settings, ApiAuthClient $apiAuth): int
+    {
+        $circuitOpen = $apiAuth->circuit()->isOpen();
+
+        // The providers resolved below call API-Auth through this instance.
+        $this->laravel->instance(ApiAuthClient::class, $apiAuth->withoutCircuit());
+
+        try {
+            return $this->diagnose(
+                $settings,
+                $circuitOpen,
+                $this->laravel->make(PublicKeyProvider::class),
+                $this->laravel->make(ServiceTokenProvider::class),
+            );
+        } finally {
+            $this->laravel->forgetInstance(ApiAuthClient::class);
+        }
+    }
+
+    private function diagnose(AuthSettings $settings, bool $circuitOpen, PublicKeyProvider $keys, ServiceTokenProvider $tokens): int
     {
         $ok = true;
         $needsCredentials = $settings->strategy !== 'jwt';
@@ -28,6 +49,12 @@ final class CheckCommand extends Command
         $this->components->twoColumnDetail('Strategy', $settings->strategy);
         $this->components->twoColumnDetail('API-Auth URL', $settings->url ?? '<fg=red>not configured</>');
         $this->components->twoColumnDetail('This API (aud)', $settings->api ?? 'not set: tokens issued for any API are accepted');
+        $this->components->twoColumnDetail('API-Auth circuit', $circuitOpen
+            ? '<fg=yellow>open</>: calls to API-Auth fail at once until it recovers'
+            : 'closed');
+        $this->components->twoColumnDetail('Degraded mode', $settings->degradedMode
+            ? '<fg=yellow>on</>: with hybrid, tokens are accepted without introspection while API-Auth is down'
+            : 'off');
 
         $ok = $this->check('Public key', function () use ($keys) {
             $key = $keys->refresh() ?? $keys->get();

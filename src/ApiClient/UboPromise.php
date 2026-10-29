@@ -16,6 +16,7 @@ final class UboPromise
     public function __construct(
         private readonly PromiseInterface $promise,
         private readonly string $api,
+        private readonly ?CallBudget $budget = null,
     ) {
         // Laravel builds async requests lazily; start it now so several promises run concurrently.
         if ($promise instanceof LazyPromise && $promise->promiseNeedsBuilt()) {
@@ -28,7 +29,11 @@ final class UboPromise
      */
     public function wait(): Response
     {
-        return ResultGuard::verify($this->api, $this->promise->wait());
+        try {
+            return ResultGuard::verify($this->api, $this->promise->wait());
+        } catch (UboApiException $e) {
+            throw $this->budget?->exceeded ? UboApiException::deadlineExceeded($e) : $e;
+        }
     }
 
     /** The underlying Guzzle promise, for advanced composition. */

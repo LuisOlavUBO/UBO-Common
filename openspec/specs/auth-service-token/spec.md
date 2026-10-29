@@ -22,11 +22,10 @@ lanzar `ServiceTokenException` sin hacer la llamada.
 - **THEN** se lanza `ServiceTokenException` indicando las variables requeridas, sin llamar a API-Auth
 
 ### Requirement: Errores al pedir el token
-Si API-Auth no responde, MUST lanzarse `ServiceTokenException` indicando que no se pudo conectar. Si el
-circuito hacia API-Auth está abierto, MUST lanzarse `ServiceTokenException` indicando que API-Auth no está
-disponible, sin hacer la llamada. Si responde un error o una respuesta sin `access_token`, MUST lanzarse
-`ServiceTokenException` con el status, el código `error` y una descripción armada con `error_description`
-(o `message`) y `hint`. Los dos primeros casos aplican solo sin token de reserva.
+Sin token de reserva, si API-Auth no responde MUST lanzarse `ServiceTokenException` indicando que no se
+pudo conectar, y con el circuito abierto, que API-Auth no está disponible, sin llamarlo. Si API-Auth
+responde un error o no trae `access_token`, MUST lanzarse `ServiceTokenException` con el status, el
+código `error` y una descripción con `error_description` (o `message`) y `hint`.
 
 #### Scenario: Scope no permitido
 - **WHEN** API-Auth responde 400 con `error=invalid_scope` y un `hint` que nombra el scope

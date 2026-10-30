@@ -9,6 +9,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-30
+
+Versión MINOR: compatible con la 3.0 (sigue requiriendo API-Auth 3.0.0). Las aplicaciones solo tienen
+que ejecutar `composer update ubo/common`: todos los valores nuevos tienen un valor por defecto y un
+`config/ubo-*.php` publicado recibe las claves nuevas. Para que los circuit breakers se compartan entre
+workers y servidores, conviene un almacén de caché compartido (`UBO_AUTH_CACHE_STORE` y
+`UBO_APIS_CACHE_STORE` en Redis o base de datos). Cambian tres tiempos: la espera entre reintentos, el
+tope de una llamada con `UboApi` (30 s) y el timeout de conexión hacia API-Auth (2 s).
+
 ### Security
 
 - **Auth**: con `APP_ENV=production`, si la clave pública de API-Auth en uso es la clave de prueba de

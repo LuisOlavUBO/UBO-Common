@@ -280,7 +280,51 @@ test('the rate limit with the token in force keeps the person logged in and the 
     whoami()->assertJson(['check' => true]);
 
     expect(vaultEntry($handle)['refresh_token'])->toBe('refresh-token');
-    Log::shouldHaveReceived('warning')->atLeast()->once();
+    Log::shouldHaveReceived('warning')->once();
+});
+
+test('a request that IAM did not settle asks once however many times the guard is consulted', function (Closure $iam) {
+    loginNearExpiry();
+    $iam();
+
+    whoami()->assertJson(['check' => true]);
+
+    // The route consults the guard several times (check, id, user...).
+    Http::assertSentCount(1);
+})->with([
+    'IAM down' => [fn () => iamAnswers([IAM_TOKEN_URL => connectionRefused()])],
+    'rate limit' => [fn () => iamRefuses(429, 'too_many_requests')],
+    '5xx' => [fn () => iamAnswers([IAM_TOKEN_URL => Http::response('', 503)])],
+]);
+
+test('the next request asks again after IAM did not settle one', function () {
+    $handle = loginNearExpiry();
+    iamRefuses(429, 'too_many_requests');
+
+    whoami()->assertJson(['check' => true]);
+    Http::assertSentCount(1);
+
+    whoami()->assertJson(['check' => true]);
+    Http::assertSentCount(2);
+
+    iamRenews($renewed = personToken(), 'refresh-2');
+
+    whoami()->assertJson(['check' => true]);
+    Http::assertSentCount(1);
+    expect(vaultEntry($handle)['access_token'])->toBe($renewed);
+});
+
+test('an expired token that IAM did not settle is out for the whole request and in again on the next', function () {
+    loginNearExpiry();
+    $this->travel(46)->seconds();
+    iamAnswers([IAM_TOKEN_URL => connectionRefused()]);
+
+    whoami()->assertJson(['check' => false]);
+    Http::assertSentCount(1);
+
+    iamRenews(personToken(), 'refresh-2');
+
+    whoami()->assertJson(['check' => true]);
 });
 
 test('the rate limit with the token expired leaves the person out without ending the session', function () {

@@ -106,6 +106,10 @@ MUST devolver `null` sin borrar la bóveda, para reintentar en la siguiente peti
 - **WHEN** IAM responde 429 a la renovación con el token todavía vigente
 - **THEN** la persona sigue autenticada y no se borra nada
 
+#### Scenario: Una sola pregunta por petición
+- **WHEN** IAM no responde o responde 429 a la renovación y la misma petición consulta el guard varias veces
+- **THEN** IAM recibe una sola llamada en esa petición, y la siguiente petición vuelve a intentar
+
 ### Requirement: Revalidación periódica
 Cada `UBO_LOGIN_REVALIDATE` segundos (300; 0 la apaga) el guard SHALL comprobar con IAM, por la estrategia de
 validación configurada, que el token de acceso sigue activo, para enterarse de un logout hecho en otro sistema, y
@@ -126,7 +130,7 @@ M2M configuradas; si IAM no responde, la sesión sigue y se reintenta en la sigu
 
 #### Scenario: IAM caído en la comprobación
 - **WHEN** la comprobación falla porque IAM no responde
-- **THEN** la persona sigue autenticada y se reintenta en la siguiente petición
+- **THEN** la persona sigue autenticada, la comprobación no se repite dentro de la misma petición y se reintenta en la siguiente
 
 ### Requirement: Tope de duración de la sesión
 La sesión del login SHALL terminar a los `UBO_LOGIN_MAX_AGE` segundos (43200, 12 horas; 0 sin tope) desde el login,

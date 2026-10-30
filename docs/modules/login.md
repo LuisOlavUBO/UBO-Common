@@ -174,8 +174,8 @@ IAM) cuando:
 `invalid_grant` (por ejemplo 429), **la sesión no termina**: se sigue con el token vigente mientras no venza,
 y si ya venció el guard devuelve `null` sin borrar la bóveda, así que la persona va a IAM (que, si está caído,
 responde 503 en el callback) y la siguiente petición con IAM disponible renueva. La revalidación también
-tolera que IAM no responda. Cada consulta al guard con IAM caído vuelve a intentarlo (el circuito de API-Auth
-evita la carga). IAM limita `/api/auth/oauth/token` a 120 solicitudes por minuto **por cliente**, compartidas
+tolera que IAM no responda. Dentro de una misma petición IAM recibe una sola llamada, aunque el guard se
+consulte varias veces (middleware, `Gate`, vistas); la siguiente petición vuelve a intentar. IAM limita `/api/auth/oauth/token` a 120 solicitudes por minuto **por cliente**, compartidas
 por todas las personas del monolito: un pico de renovaciones puede recibir 429, que no termina la sesión (hay
 60 segundos de margen).
 

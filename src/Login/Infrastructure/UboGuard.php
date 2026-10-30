@@ -8,15 +8,22 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\Request;
 use UBO\Common\Login\Domain\UboUser;
+use WeakMap;
 
 /**
  * The guard "ubo": the person is whoever the login left in the session, for as long as the
  * session of the login lasts (LoginTokens renews, checks and ends it). It keeps no user of its
- * own between calls, so a new request or a new test never sees the previous one's.
+ * own between calls, so a new request or a new test never sees the previous one's. The one
+ * thing it remembers, for the request in hand only, is an answer IAM left open (it did not
+ * respond or limited the calls): the request consults the guard several times, and each
+ * consultation would call IAM again.
  */
 final class UboGuard implements Guard
 {
     private ?UboUser $forced = null;
+
+    /** @var WeakMap<Request, array{handle: string, user: ?UboUser}> */
+    private WeakMap $unsettled;
 
     /**
      * @param  Closure(): Request  $request
@@ -25,7 +32,9 @@ final class UboGuard implements Guard
     public function __construct(
         private readonly Closure $request,
         private readonly Closure $tokens,
-    ) {}
+    ) {
+        $this->unsettled = new WeakMap;
+    }
 
     public function user(): ?UboUser
     {
@@ -43,8 +52,28 @@ final class UboGuard implements Guard
             return null;
         }
 
+        // IAM did not settle this request's question: ask once, not on every consultation.
+        if (isset($this->unsettled[$request]) && $this->unsettled[$request]['handle'] === $handle) {
+            return $this->unsettled[$request]['user'];
+        }
+
+        $tokens = ($this->tokens)();
+        $user = $this->userOf($tokens->current($handle));
+
+        if ($tokens->unsettled()) {
+            $this->unsettled[$request] = ['handle' => $handle, 'user' => $user];
+        }
+
+        return $user;
+    }
+
+    /**
+     * @param  array{id: string, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, expires_at: int}|null  $login
+     */
+    private function userOf(?array $login): ?UboUser
+    {
         // A session that ended (or whose vault entry is gone) leaves only a handle that opens nothing.
-        if (($login = ($this->tokens)()->current($handle)) === null) {
+        if ($login === null) {
             return null;
         }
 

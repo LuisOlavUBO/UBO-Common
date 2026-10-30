@@ -40,11 +40,16 @@ final class LoginTokens
         private readonly LoggerInterface $log,
     ) {}
 
+    /** Whether the last current() left a question to IAM open: it did not answer or limited the calls. */
+    private bool $unsettled = false;
+
     /**
      * @return Entry|null null when the session ended or the access token cannot be used right now
      */
     public function current(string $handle): ?array
     {
+        $this->unsettled = false;
+
         if (($login = $this->vault->get($handle)) === null) {
             return null;
         }
@@ -64,6 +69,15 @@ final class LoginTokens
         }
 
         return $this->revalidated($handle, $login);
+    }
+
+    /**
+     * Whether the last current() could not renew or check with IAM for now, so asking again
+     * right away (in the same request) would only repeat the failure.
+     */
+    public function unsettled(): bool
+    {
+        return $this->unsettled;
     }
 
     /**
@@ -133,6 +147,8 @@ final class LoginTokens
      */
     private function keep(array $login, UserTokenRejected|AuthServerUnavailable $e): array
     {
+        $this->unsettled = true;
+
         if ($e instanceof UserTokenRejected) {
             $this->log->warning('UBO.Common could not renew the access token of a login: '.$e->getMessage());
         }
@@ -221,6 +237,8 @@ final class LoginTokens
 
             return $current !== null && $current['access_token'] !== $login['access_token'] ? $current : $this->end($handle);
         } catch (AuthServerUnavailable) {
+            $this->unsettled = true;
+
             return $login;
         }
 

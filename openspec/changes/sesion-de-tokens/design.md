@@ -64,8 +64,14 @@ La motivación está en el proposal (ver "Why") y los comportamientos exigidos, 
   (`ubo_login_pending`) sigue en la sesión: se escribe y se lee en peticiones distintas, no en paralelo.
 - **Servicio `LoginTokens` (interno) con `current(handle)`**, que hace en orden: tope de duración, renovación si
   corresponde y revalidación si corresponde, y devuelve los datos o `null`. El guard lo llama en cada `user()`; no
-  memoriza, porque tras renovar la bóveda ya guarda el vencimiento nuevo y las llamadas siguientes no hacen nada.
-  Otro cambio construirá `UserTokenProvider` sobre la misma pieza.
+  memoriza lo que resuelve, porque tras renovar, revalidar o terminar la sesión la bóveda ya guarda el estado nuevo y
+  las llamadas siguientes no hacen nada. Otro cambio construirá `UserTokenProvider` sobre la misma pieza.
+- **Lo que IAM no resolvió se pregunta una vez por petición.** Una petición consulta el guard varias veces
+  (middleware, `Gate`, vistas), y si IAM no responde o limita las llamadas, cada consulta repetiría la renovación o la
+  revalidación: con el 429 por cliente de IAM, eso agrava el límite. `LoginTokens` avisa (`unsettled()`) cuando dejó
+  una pregunta a IAM abierta (renovación que siguió con el token vigente, o revalidación sin respuesta) y el guard
+  recuerda ese resultado solo para ese objeto `Request` (un `WeakMap`). La siguiente petición vuelve a intentar. Lo
+  que sí quedó resuelto (renovado, revalidado, sesión terminada) no se memoriza.
 - **Renovación como en `HttpServiceTokenProvider`**: margen `UBO_LOGIN_REFRESH_MARGIN` (60 s), `Cache::lock` por
   `handle` (10 s, espera 5 s) y, ya dentro, se vuelve a leer la bóveda: si otra petición renovó mientras se
   esperaba, se usa su resultado. Si el almacén no tiene bloqueos, o la espera se agota, se renueva igual.

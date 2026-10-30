@@ -152,8 +152,8 @@ test('with IAM down the person stays and the check is tried again on the next re
     whoami()->assertJson(['check' => true]);
     whoami()->assertJson(['check' => true]);
 
-    // The guard asks again every time it is consulted, and each request consults it more than once.
-    expect($watch->asked)->toBeGreaterThanOrEqual(2)
+    // Once per request, though each request consults the guard several times.
+    expect($watch->asked)->toBe(2)
         ->and(vaultEntry($handle))->not->toBeNull();
 
     $watch->down = false;

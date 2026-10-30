@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use UBO\Common\ApiClient\ApiClientServiceProvider;
 use UBO\Common\Auth\AuthServiceProvider;
 use UBO\Common\Health\HealthServiceProvider;
+use UBO\Common\Login\LoginServiceProvider;
 use UBO\Common\Problems\ProblemsServiceProvider;
 use UBO\Common\SqlServer\SqlServerServiceProvider;
 use UBO\Common\Support\MergesConfigDeeply;
@@ -33,6 +34,7 @@ final class UboCommonServiceProvider extends ServiceProvider
         'problems' => ProblemsServiceProvider::class,
         'health' => HealthServiceProvider::class,
         'sqlserver' => SqlServerServiceProvider::class,
+        'login' => LoginServiceProvider::class,
     ];
 
     public function register(): void

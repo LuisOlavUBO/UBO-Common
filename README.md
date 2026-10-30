@@ -1,7 +1,7 @@
 # UBO.Common (`ubo/common`)
 
 Librería PHP/Laravel con las piezas comunes de las APIs de la UBO y de los sistemas que las consumen.
-**No es una API**: no registra rutas, no tiene base de datos y no se despliega. Se instala con Composer
+**No es una API**: no tiene base de datos y no se despliega, y solo registra rutas si se activa el módulo `Login`. Se instala con Composer
 dentro de cada aplicación (`vendor/ubo/common`) y corre en su mismo proceso.
 
 | Módulo | Para quién | Qué resuelve | Documentación |
@@ -12,6 +12,7 @@ dentro de cada aplicación (`vendor/ubo/common`) y corre en su mismo proceso.
 | `Problems` | APIs | Errores en RFC 9457 (`application/problem+json`) con código estable en `error`: `ProblemRenderer` y `DomainProblem` | [docs/modules/problems.md](docs/modules/problems.md) |
 | `Health` | APIs | Endpoint de salud `GET /api/<nombre>/v1/salud` que revisa la base de datos: `HealthController` | [docs/modules/health.md](docs/modules/health.md) |
 | `SqlServer` | Aplicaciones con SQL Server | `SET DATEFORMAT ymd` en cada conexión `sqlsrv` (**apagado** por defecto) | [docs/modules/sqlserver.md](docs/modules/sqlserver.md) |
+| `Login` | Monolitos Laravel | Login de personas en **IAM** (Authorization Code + PKCE), usuario con roles y scopes, `@can` y logout (**apagado** por defecto) | [docs/modules/login.md](docs/modules/login.md) |
 
 Reglas para agregar módulos nuevos: [docs/framework.md](docs/framework.md).
 
@@ -51,6 +52,7 @@ php artisan vendor:publish --tag=ubo-tracing-config  # módulo Tracing
 php artisan vendor:publish --tag=ubo-problems-config # módulo Problems
 php artisan vendor:publish --tag=ubo-health-config   # módulo Health
 php artisan vendor:publish --tag=ubo-sqlserver-config # módulo SqlServer
+php artisan vendor:publish --tag=ubo-login-config     # módulo Login
 ```
 
 ## Uso rápido
@@ -97,8 +99,9 @@ Route::get('v1/salud', \UBO\Common\Health\Http\Controllers\HealthController::cla
 | `UBO_PROBLEMS_ROUTES` | Problems | Rutas donde responde `ProblemRenderer`, separadas por coma (`api/*` por defecto) |
 | `UBO_HEALTH_CONNECTION` | Health | Conexión que revisa el endpoint de salud (vacío: la por defecto) |
 | `UBO_SQLSERVER_DATE_FORMAT` | SqlServer | Formato de `SET DATEFORMAT` (`ymd` por defecto) |
+| `UBO_LOGIN_PUBLIC_URL` / `UBO_LOGIN_CLIENT_ID` / `UBO_LOGIN_CLIENT_SECRET` | Login | Dirección pública de IAM y credenciales del cliente de login de esta aplicación |
 | `UBO_COMMON_AUTH` / `UBO_COMMON_API_CLIENT` / `UBO_COMMON_TRACING` / `UBO_COMMON_PROBLEMS` / `UBO_COMMON_HEALTH` | — | Activar o desactivar cada módulo (`true` por defecto) |
-| `UBO_COMMON_SQLSERVER` | — | Activar el módulo SqlServer (`false` por defecto) |
+| `UBO_COMMON_SQLSERVER` / `UBO_COMMON_LOGIN` | — | Activar los módulos SqlServer y Login (`false` por defecto) |
 
 El resto de los ajustes (TTL de caché, timeouts, reintentos...) está comentado en el archivo de
 configuración de cada módulo: `src/<Module>/config/ubo-<module>.php` (`ubo-apis.php` en ApiClient).

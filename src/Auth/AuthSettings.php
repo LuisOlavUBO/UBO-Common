@@ -14,6 +14,7 @@ final readonly class AuthSettings
         'token' => '/api/auth/oauth/token',
         'introspect' => '/api/auth/v1/introspect',
         'public_key' => '/api/auth/v1/public-key',
+        'logout' => '/api/auth/v1/logout',
     ];
 
     // Defaults when a value is missing, empty or out of range (same as config/ubo-auth.php).
@@ -38,7 +39,7 @@ final readonly class AuthSettings
     private const CIRCUIT_COOLDOWN = 30;
 
     /**
-     * @param  array{token: string, introspect: string, public_key: string}  $endpoints
+     * @param  array{token: string, introspect: string, public_key: string, logout: string}  $endpoints
      */
     public function __construct(
         public ?string $url,
@@ -101,7 +102,7 @@ final readonly class AuthSettings
      * published "endpoints" array is ignored, so the routes never freeze in an old file.
      *
      * @param  array<array-key, mixed>  $overrides
-     * @return array{token: string, introspect: string, public_key: string}
+     * @return array{token: string, introspect: string, public_key: string, logout: string}
      */
     private static function endpoints(array $overrides): array
     {
@@ -114,7 +115,7 @@ final readonly class AuthSettings
         return $endpoints;
     }
 
-    /** Absolute URL of an API-Auth endpoint ("token", "introspect" or "public_key"). */
+    /** Absolute URL of an API-Auth endpoint ("token", "introspect", "public_key" or "logout"). */
     public function endpoint(string $name): ?string
     {
         return $this->url === null ? null : $this->url.$this->endpoints[$name];

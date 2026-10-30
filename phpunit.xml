@@ -26,6 +26,9 @@
         <testsuite name="SqlServer">
             <directory>tests/SqlServer</directory>
         </testsuite>
+        <testsuite name="Login">
+            <directory>tests/Login</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

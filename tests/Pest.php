@@ -7,9 +7,56 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise\Create;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
+use UBO\Common\Tests\Login\LoginTestCase;
 use UBO\Common\Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Support', 'Auth', 'ApiClient', 'Tracing', 'Problems', 'Health', 'SqlServer');
+pest()->extend(LoginTestCase::class)->in('Login');
+
+/*
+| The query of the address a login redirect sends the browser to (the login module).
+*/
+function authorizeParams(TestResponse $response): array
+{
+    parse_str((string) parse_url((string) $response->headers->get('Location'), PHP_URL_QUERY), $params);
+
+    return $params;
+}
+
+/*
+| Steps of a login with IAM (the login module): the browser starts it, IAM issues a token,
+| the browser comes back. The helpers use the test's own session and TokenFactory.
+*/
+
+const IAM_TOKEN_URL = 'https://api-auth.test/api/auth/oauth/token';
+
+/**
+ * The browser starts a login: the state it will bring back and the verifier the session keeps.
+ *
+ * @return array{0: string, 1: string}
+ */
+function startedLogin(string $query = ''): array
+{
+    $params = authorizeParams(test()->get('/iam/login'.$query));
+
+    return [$params['state'], session('ubo_login_pending.verifier')];
+}
+
+function iamIssues(string $accessToken, int $status = 200): void
+{
+    Http::fake([IAM_TOKEN_URL => Http::response(
+        $status === 200 ? ['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => $accessToken, 'refresh_token' => 'refresh-token'] : ['error' => 'invalid_grant', 'error_description' => 'The provided authorization grant is invalid.'],
+        $status,
+    )]);
+}
+
+function personToken(array $overrides = []): string
+{
+    $overrides += ['id' => '42', 'client' => 'login-client', 'scopes' => ['geografia:leer'], 'roles' => ['coordinador'], 'audiences' => ['api-maestros']];
+
+    return test()->tokens->forUser($overrides['id'], $overrides['client'], $overrides['scopes'], roles: $overrides['roles'], audiences: $overrides['audiences']);
+}
 
 /*
 | A fake API-Auth token endpoint answering client credentials requests.

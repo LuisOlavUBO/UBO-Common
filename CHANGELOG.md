@@ -11,6 +11,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ### Added
 
+- **Login**: módulo nuevo, **apagado por defecto** (`UBO_COMMON_LOGIN=true` para activarlo), para que un
+  monolito Laravel inicie sesión con IAM por Authorization Code + PKCE (parte 1: el token de acceso no se
+  renueva, al vencer la persona vuelve a pasar por IAM). Registra `GET <prefijo>/login`, `GET
+  <prefijo>/callback` y `POST <prefijo>/logout` (`iam` por defecto, `UBO_LOGIN_ROUTE_PREFIX`) con `state`
+  de un solo uso, PKCE y sesión regenerada al entrar; el guard `ubo` con `UboUser` (id, roles, scopes y
+  audiencias del token); los alias `ubo.login` y `ubo.role:a,b`; y una regla de `Gate` que convierte los
+  scopes de la persona en habilidades (`@can`, `can:`) sin negar nunca lo que decidan las políticas de la
+  aplicación. El logout revoca el token, cierra la sesión local y manda a IAM (o solo local con
+  `scope=local`). Se configura con `UBO_LOGIN_PUBLIC_URL` (la dirección de IAM para el navegador, distinta
+  de `UBO_AUTH_URL`), `UBO_LOGIN_CLIENT_ID`, `UBO_LOGIN_CLIENT_SECRET`, `UBO_LOGIN_REDIRECT_URI`,
+  `UBO_LOGIN_HOME`, `UBO_LOGIN_LOGOUT_RETURN`, `UBO_LOGIN_PROMPT` y `UBO_LOGIN_STATE_TTL`. No necesita
+  credenciales M2M. Rechaza `SESSION_DRIVER=cookie`. `UboLogin::actingAs()` simula a una persona en los
+  tests. Requiere un cliente `authorization-code` en IAM. Ver `docs/modules/login.md`.
+- **Auth**: `Contracts\UserTokenClient` canjea el código de autorización y revoca el token de una persona
+  (`POST /api/auth/oauth/token` y `/api/auth/v1/logout`), con los timeouts, la traza y el circuito de las
+  demás llamadas a API-Auth; `UserTokenRejected` si API-Auth rechaza el canje. `Contracts\LocalTokenValidator`
+  es el validador local (firma y vigencia) sin importar `UBO_AUTH_STRATEGY`. La ruta de la revocación se puede
+  reemplazar con `UBO_AUTH_ENDPOINT_LOGOUT`.
+- Dependencias `illuminate/routing` e `illuminate/session` declaradas (ya las trae `laravel/framework`).
+
 - **Auth**: `VerifiedToken` expone los roles del token (`roles` y `hasRole()`). `JwtValidator` los lee de
   la claim `roles` y `IntrospectionValidator`, del campo `roles` de la respuesta (con `hybrid` salen del
   JWT). Un token sin la claim sigue siendo válido y queda con `roles` vacío, igual que un resultado de

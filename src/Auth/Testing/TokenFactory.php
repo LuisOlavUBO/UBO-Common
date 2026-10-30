@@ -56,10 +56,11 @@ final class TokenFactory
      * $api (added to "aud"); by default the API under test (ubo-auth.api), and "" for none.
      *
      * @param  list<string>  $scopes
+     * @param  list<string>  $roles  goes in the "roles" claim
      */
-    public function forClient(string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null): string
+    public function forClient(string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null, array $roles = []): string
     {
-        return $this->issue($clientId, $clientId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest());
+        return $this->issue($clientId, $clientId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest(), roles: $roles);
     }
 
     /**
@@ -68,11 +69,16 @@ final class TokenFactory
      * none), so a "sub" that only differs in case from the client id, which is a machine
      * token, also passes the audience check.
      *
+     * With $audiences the token is issued as API-Auth does for a user: "aud" is the client id
+     * followed by those applications, and $api is not added.
+     *
      * @param  list<string>  $scopes
+     * @param  list<string>  $roles  goes in the "roles" claim
+     * @param  list<string>|null  $audiences  applications named in "aud" after the client id
      */
-    public function forUser(string $userId, string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null): string
+    public function forUser(string $userId, string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null, array $roles = [], ?array $audiences = null): string
     {
-        return $this->issue($clientId, $userId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest());
+        return $this->issue($clientId, $userId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest(), roles: $roles, applications: $audiences);
     }
 
     /**
@@ -118,17 +124,20 @@ final class TokenFactory
 
     /**
      * @param  list<string>  $scopes
+     * @param  list<string>  $roles
+     * @param  list<string>|null  $applications  named in "aud" after the client id instead of $api
      */
-    private function issue(string $clientId, string $subject, array $scopes, DateTimeImmutable $issuedAt, int $ttl, string $key = 'test', ?string $api = null): string
+    private function issue(string $clientId, string $subject, array $scopes, DateTimeImmutable $issuedAt, int $ttl, string $key = 'test', ?string $api = null, array $roles = [], ?array $applications = null): string
     {
         return (new Builder(new JoseEncoder, ChainedFormatter::default()))
-            ->permittedFor(...array_filter([$clientId, $api]))
+            ->permittedFor(...array_filter([$clientId, ...($applications ?? [$api])]))
             ->identifiedBy(Str::random(80))
             ->issuedAt($issuedAt)
             ->canOnlyBeUsedAfter($issuedAt)
             ->expiresAt($issuedAt->modify("+{$ttl} seconds"))
             ->relatedTo($subject)
             ->withClaim('scopes', $scopes)
+            ->withClaim('roles', $roles)
             ->getToken(new Sha256, InMemory::file(__DIR__."/keys/{$key}-private.key"))
             ->toString();
     }

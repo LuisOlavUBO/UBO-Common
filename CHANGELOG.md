@@ -9,6 +9,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+### Added
+
+- **Auth**: `VerifiedToken` expone los roles del token (`roles` y `hasRole()`). `JwtValidator` los lee de
+  la claim `roles` y `IntrospectionValidator`, del campo `roles` de la respuesta (con `hybrid` salen del
+  JWT). Un token sin la claim sigue siendo válido y queda con `roles` vacío, igual que un resultado de
+  introspección guardado en la caché antes de esta versión. `roles` es el último parámetro opcional del
+  constructor: `new VerifiedToken(...)` con los argumentos anteriores sigue funcionando.
+- **Auth**: `TokenFactory::forClient()` y `forUser()` aceptan `$roles` (claim `roles`), y `forUser()`
+  `$audiences`, para emitir el `aud` de un token de usuario de API-Auth (el client id y las aplicaciones
+  dueñas de sus scopes); con `$audiences` no se agrega `$api`.
+
 ## [3.1.0] - 2026-10-30
 
 Versión MINOR: compatible con la 3.0 (sigue requiriendo API-Auth 3.0.0). Las aplicaciones solo tienen

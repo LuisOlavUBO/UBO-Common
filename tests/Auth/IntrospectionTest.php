@@ -327,3 +327,58 @@ test('without degraded mode hybrid fails closed while introspection is down', fu
 
     app(TokenValidator::class)->validate($tokens->forClient('SIS'));
 })->throws(AuthServerUnavailable::class);
+
+test('the roles reported by API-Auth are kept', function () {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response([
+            ...activeIntrospection(),
+            'sub' => '42',
+            'roles' => ['vendedor'],
+        ]),
+    ]);
+
+    $token = app(TokenValidator::class)->validate('opaque-token');
+
+    expect($token->roles)->toBe(['vendedor'])
+        ->and($token->hasRole('vendedor'))->toBeTrue();
+});
+
+test('a response without roles gives a token without roles', function () {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response(activeIntrospection()),
+    ]);
+
+    $token = app(TokenValidator::class)->validate('opaque-token');
+
+    expect($token->roles)->toBe([]);
+});
+
+test('a cached result saved before roles existed is read without roles and without calling API-Auth again', function () {
+    Http::fake();
+
+    cache()->put('ubo-auth:introspection:'.hash('sha256', 'opaque-token'), [
+        'active' => true,
+        'client_id' => 'SIS_SQLSRV',
+        'sub' => null,
+        'scopes' => ['geografia:leer'],
+        'aud' => ['SIS_SQLSRV'],
+        'exp' => now()->addHour()->getTimestamp(),
+    ], 30);
+
+    $token = app(TokenValidator::class)->validate('opaque-token');
+
+    expect($token->roles)->toBe([])
+        ->and($token->scopes)->toBe(['geografia:leer']);
+    Http::assertNothingSent();
+});
+
+test('with hybrid the roles come from the JWT that passed the local check', function () {
+    $tokens = TokenFactory::fake();
+    config(['ubo-auth.strategy' => 'hybrid']);
+
+    $token = app(TokenValidator::class)->validate($tokens->forUser('42', 'SIS_SQLSRV', ['geografia:leer'], roles: ['coordinador']));
+
+    expect($token->roles)->toBe(['coordinador']);
+});

@@ -103,7 +103,7 @@ final class JwtValidator implements TokenValidator
 
     /**
      * Passport claims: jti, aud = [client id] (plus the API name for tokens issued for
-     * one API), sub = user id (or the client id for client credentials tokens), scopes, exp.
+     * one API), sub = user id (or the client id for client credentials tokens), scopes, roles, exp.
      */
     private function toVerifiedToken(UnencryptedToken $jwt): VerifiedToken
     {
@@ -125,6 +125,17 @@ final class JwtValidator implements TokenValidator
             scopes: array_values(array_filter($scopes, 'is_string')),
             expiresAt: $claims->get(RegisteredClaims::EXPIRATION_TIME),
             audiences: array_values(array_filter($audiences, 'is_string')),
+            roles: $this->roles($claims->get('roles')),
         );
+    }
+
+    /**
+     * Tokens issued before API-Auth added roles have no such claim: they stay valid, with none.
+     *
+     * @return list<string>
+     */
+    private function roles(mixed $roles): array
+    {
+        return is_array($roles) ? array_values(array_filter($roles, 'is_string')) : [];
     }
 }

@@ -21,6 +21,7 @@ final readonly class VerifiedToken
      * @param  string|null  $userId  null for machine-to-machine tokens
      * @param  list<string>  $scopes
      * @param  list<string>  $audiences  "aud" claim: the client id and, for tokens issued for one API, its name
+     * @param  list<string>  $roles  "roles" claim: names of the roles the token was issued with (empty when it has none)
      */
     public function __construct(
         public string $id,
@@ -29,6 +30,7 @@ final readonly class VerifiedToken
         public array $scopes,
         public DateTimeImmutable $expiresAt,
         public array $audiences = [],
+        public array $roles = [],
     ) {}
 
     /** The token validated by the "ubo.auth" middleware for this request, if any. */
@@ -63,6 +65,12 @@ final readonly class VerifiedToken
     public function isFor(string $api): bool
     {
         return in_array($api, $this->audiences, true);
+    }
+
+    /** Issued with this role, compared as written (role names are case-sensitive). */
+    public function hasRole(string $role): bool
+    {
+        return in_array($role, $this->roles, true);
     }
 
     public function hasScope(string $scope): bool

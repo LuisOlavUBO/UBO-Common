@@ -2,8 +2,15 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Lcobucci\JWT\Encoding\ChainedFormatter;
+use Lcobucci\JWT\Encoding\JoseEncoder;
+use Lcobucci\JWT\Signer\Key\InMemory;
+use Lcobucci\JWT\Signer\Rsa\Sha256;
+use Lcobucci\JWT\Token\Builder;
+use Lcobucci\JWT\Token\Parser;
 use UBO\Common\Auth\Domain\VerifiedToken;
 use UBO\Common\Auth\Exceptions\InsufficientScope;
+use UBO\Common\Auth\Testing\TestKey;
 use UBO\Common\Auth\Testing\TokenFactory;
 
 beforeEach(function () {
@@ -134,4 +141,88 @@ test('user tokens are not checked against the API name', function () {
 
     $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer']))
         ->getJson('/protected')->assertOk();
+});
+
+/*
+| Roles of the token.
+*/
+
+/** A machine token signed with the test key, with exactly the claims given (TokenFactory always writes "roles"). */
+function tokenWithClaims(array $claims): string
+{
+    $builder = (new Builder(new JoseEncoder, ChainedFormatter::default()))
+        ->permittedFor('SIS_SQLSRV')
+        ->identifiedBy('jti-1')
+        ->issuedAt(now()->toDateTimeImmutable())
+        ->canOnlyBeUsedAfter(now()->toDateTimeImmutable())
+        ->expiresAt(now()->addHour()->toDateTimeImmutable())
+        ->relatedTo('SIS_SQLSRV')
+        ->withClaim('scopes', ['geografia:leer']);
+
+    foreach ($claims as $name => $value) {
+        $builder = $builder->withClaim($name, $value);
+    }
+
+    return $builder
+        ->getToken(new Sha256, InMemory::file(dirname(TestKey::PUBLIC_KEY_PATH).'/test-private.key'))
+        ->toString();
+}
+
+test('the roles of the token are available in the request', function () {
+    config(['ubo-auth.allow_user_tokens' => true]);
+    Route::middleware('ubo.auth')->get('/protected/roles', fn (Request $request) => [
+        'roles' => VerifiedToken::from($request)->roles,
+        'lector' => VerifiedToken::from($request)->hasRole('lector'),
+    ]);
+
+    $token = $this->tokens->forUser('42', 'SIS_SQLSRV', ['geografia:leer'], roles: ['coordinador', 'lector']);
+
+    $this->withToken($token)->getJson('/protected/roles')
+        ->assertOk()
+        ->assertExactJson(['roles' => ['coordinador', 'lector'], 'lector' => true]);
+});
+
+test('a machine token reports its roles too', function () {
+    Route::middleware('ubo.auth')->get('/protected/roles', fn (Request $request) => VerifiedToken::from($request)->roles);
+
+    $this->withToken($this->tokens->forClient('SIS_SQLSRV', ['geografia:leer'], roles: ['lector']))
+        ->getJson('/protected/roles')
+        ->assertOk()
+        ->assertExactJson(['lector']);
+});
+
+test('a token without the roles claim is accepted and has none', function () {
+    Route::middleware('ubo.auth')->get('/protected/roles', fn (Request $request) => VerifiedToken::from($request)->roles);
+
+    $this->withToken(tokenWithClaims([]))->getJson('/protected/roles')->assertOk()->assertExactJson([]);
+});
+
+test('a roles claim that is not a list is read as no roles', function () {
+    Route::middleware('ubo.auth')->get('/protected/roles', fn (Request $request) => VerifiedToken::from($request)->roles);
+
+    $this->withToken(tokenWithClaims(['roles' => 'lector']))->getJson('/protected/roles')->assertOk()->assertExactJson([]);
+});
+
+test('role names that are not text are dropped', function () {
+    Route::middleware('ubo.auth')->get('/protected/roles', fn (Request $request) => VerifiedToken::from($request)->roles);
+
+    $this->withToken(tokenWithClaims(['roles' => ['lector', 7, null, 'admin']]))
+        ->getJson('/protected/roles')->assertOk()->assertExactJson(['lector', 'admin']);
+});
+
+test('TokenFactory issues user tokens with the audiences API-Auth gives them', function () {
+    $token = $this->tokens->forUser('42', 'SIS_SQLSRV', [], audiences: ['api-maestros', 'portal']);
+
+    $claims = (new Parser(new JoseEncoder))->parse($token)->claims();
+
+    expect($claims->get('aud'))->toBe(['SIS_SQLSRV', 'api-maestros', 'portal']);
+});
+
+test('TokenFactory still issues user tokens for the API under test without audiences', function () {
+    config(['ubo-auth.api' => 'api-maestros']);
+
+    $token = $this->tokens->forUser('42', 'SIS_SQLSRV');
+
+    expect((new Parser(new JoseEncoder))->parse($token)->claims()->get('aud'))
+        ->toBe(['SIS_SQLSRV', 'api-maestros']);
 });

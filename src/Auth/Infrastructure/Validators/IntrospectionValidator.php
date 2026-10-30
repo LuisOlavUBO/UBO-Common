@@ -63,11 +63,12 @@ final class IntrospectionValidator implements TokenValidator
             scopes: $claims['scopes'],
             expiresAt: (new DateTimeImmutable)->setTimestamp($claims['exp']),
             audiences: $claims['aud'] ?? [],
+            roles: $claims['roles'] ?? [],
         );
     }
 
     /**
-     * @return array{active: bool, client_id: string, sub: string|null, scopes: list<string>, aud: list<string>, exp: int}
+     * @return array{active: bool, client_id: string, sub: string|null, scopes: list<string>, aud: list<string>, roles?: list<string>, exp: int}
      */
     private function introspect(string $token): array
     {
@@ -104,6 +105,7 @@ final class IntrospectionValidator implements TokenValidator
             'sub' => VerifiedToken::userIdFromSubject($data['sub'] ?? null, $data['client_id']),
             'scopes' => array_values(array_filter(explode(' ', (string) ($data['scope'] ?? '')))),
             'aud' => array_values(array_filter((array) ($data['aud'] ?? []), 'is_string')),
+            'roles' => array_values(array_filter((array) ($data['roles'] ?? []), 'is_string')),
             'exp' => (int) $data['exp'],
         ];
     }

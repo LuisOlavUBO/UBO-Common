@@ -84,6 +84,8 @@ $token = VerifiedToken::from($request);
 $token->clientId;          // client_id de API-Auth: identifica al sistema que llama
 $token->scopes;            // ['geografia:leer']
 $token->hasScope('x');     // bool
+$token->roles;             // ['coordinador']: roles con los que se emitió (vacío si el token no trae la claim)
+$token->hasRole('x');      // bool; el nombre se compara tal cual, con mayúsculas y minúsculas
 $token->expiresAt;         // DateTimeImmutable
 ```
 
@@ -145,8 +147,8 @@ test('un sistema con el scope accede', function () {
 
 | Método | Token |
 |---|---|
-| `forClient($clientId, $scopes, $ttl)` | M2M válido |
-| `forUser($userId, $clientId, $scopes)` | De usuario |
+| `forClient($clientId, $scopes, $ttl, $api, $roles)` | M2M válido, con los `roles` indicados en la claim |
+| `forUser($userId, $clientId, $scopes, $ttl, $api, $roles, $audiences)` | De usuario. Con `$audiences`, el `aud` es el client id y esas aplicaciones (como emite API-Auth) y no se agrega `$api` |
 | `expired($clientId, $scopes)` | Vencido |
 | `forged($clientId, $scopes)` | Firmado con una clave que no es la de API-Auth |
 | `revoke($token)` | Marca un token como revocado (lo ven `introspection` e `hybrid`) |

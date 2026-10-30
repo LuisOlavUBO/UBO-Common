@@ -15,6 +15,7 @@ use UBO\Common\Auth\Exceptions\UserTokenRejected;
 use UBO\Common\Login\Exceptions\LoginFailed;
 use UBO\Common\Login\Exceptions\NoAccess;
 use UBO\Common\Login\Infrastructure\LoginSession;
+use UBO\Common\Login\Infrastructure\TokenVault;
 use UBO\Common\Login\LoginSettings;
 
 /**
@@ -27,6 +28,7 @@ final class LoginController
         private readonly LoginSettings $settings,
         private readonly UserTokenClient $tokens,
         private readonly LocalTokenValidator $validator,
+        private readonly TokenVault $vault,
         private readonly LoggerInterface $log,
     ) {}
 
@@ -39,7 +41,7 @@ final class LoginController
         $state = Str::random(40);
         $verifier = $this->base64Url(random_bytes(32));
 
-        (new LoginSession($request->session()))->begin(
+        (new LoginSession($request->session(), $this->vault))->begin(
             $state,
             $verifier,
             $this->destination($request),
@@ -65,7 +67,7 @@ final class LoginController
         $clientSecret = $this->settings->clientSecret();
         LoginSession::assertServerSide((string) config('session.driver'));
 
-        $session = new LoginSession($request->session());
+        $session = new LoginSession($request->session(), $this->vault);
         // Read once, whatever follows: a state is never valid twice.
         $pending = $session->pull();
 
@@ -99,6 +101,7 @@ final class LoginController
             'scopes' => $token->scopes,
             'audiences' => $token->audiences,
             'access_token' => $issued['access_token'],
+            'refresh_token' => $issued['refresh_token'],
             'expires_at' => $token->expiresAt->getTimestamp(),
         ]);
 
@@ -114,7 +117,9 @@ final class LoginController
                 'return' => $this->settings->logoutReturnUrl(),
             ], '', '&', PHP_QUERY_RFC3986);
 
-        $login = (new LoginSession($request->session()))->current();
+        $session = new LoginSession($request->session(), $this->vault);
+        // The vault has the token in force: the one the login handed out was revoked by the first renewal.
+        $login = $session->current();
 
         if ($login !== null) {
             try {
@@ -125,6 +130,7 @@ final class LoginController
             }
         }
 
+        $session->forget();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

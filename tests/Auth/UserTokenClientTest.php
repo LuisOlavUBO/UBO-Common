@@ -19,10 +19,15 @@ function exchange(): array
     return app(UserTokenClient::class)->exchangeCode('login-client', 'login-secret', 'the-code', 'https://portal.test/iam/callback', 'the-verifier');
 }
 
+function renew(): array
+{
+    return app(UserTokenClient::class)->refresh('login-client', 'login-secret', 'the-refresh-token');
+}
+
 test('a code is exchanged for the access token with the credentials it is given', function () {
     Http::fake([TOKEN_URL => Http::response(['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'user-token', 'refresh_token' => 'r'])]);
 
-    expect(exchange())->toBe(['access_token' => 'user-token', 'expires_in' => 3600]);
+    expect(exchange())->toBe(['access_token' => 'user-token', 'refresh_token' => 'r', 'expires_in' => 3600]);
 
     Http::assertSent(fn (Request $request) => $request->url() === TOKEN_URL
         && $request->method() === 'POST'
@@ -34,6 +39,12 @@ test('a code is exchanged for the access token with the credentials it is given'
             'redirect_uri' => 'https://portal.test/iam/callback',
             'code_verifier' => 'the-verifier',
         ]);
+});
+
+test('an exchange without a refresh token gives none', function () {
+    Http::fake([TOKEN_URL => Http::response(['expires_in' => 1800, 'access_token' => 'user-token'])]);
+
+    expect(exchange())->toBe(['access_token' => 'user-token', 'refresh_token' => null, 'expires_in' => 1800]);
 });
 
 test('the login client is not the machine client of ubo-auth', function () {
@@ -155,3 +166,80 @@ test('the local validator rejects a forged token', function () {
 
     app(LocalTokenValidator::class)->validate($tokens->forged('login-client', []));
 })->throws(InvalidToken::class);
+
+test('a token is renewed with the refresh token and the credentials it is given', function () {
+    Http::fake([TOKEN_URL => Http::response(['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'new-token', 'refresh_token' => 'new-refresh'])]);
+
+    expect(renew())->toBe(['access_token' => 'new-token', 'refresh_token' => 'new-refresh', 'expires_in' => 3600]);
+
+    Http::assertSent(fn (Request $request) => $request->url() === TOKEN_URL
+        && $request->method() === 'POST'
+        && $request->data() === [
+            'grant_type' => 'refresh_token',
+            'client_id' => 'login-client',
+            'client_secret' => 'login-secret',
+            'refresh_token' => 'the-refresh-token',
+        ]);
+});
+
+test('a used refresh token is a refusal with the status and the error', function () {
+    Http::fake([TOKEN_URL => Http::response([
+        'error' => 'invalid_grant',
+        'error_description' => 'The refresh token is invalid.',
+        'hint' => 'Token has been revoked',
+    ], 400)]);
+
+    try {
+        renew();
+        $this->fail('UserTokenRejected was not thrown');
+    } catch (UserTokenRejected $e) {
+        expect($e->status)->toBe(400)
+            ->and($e->error)->toBe('invalid_grant')
+            ->and($e->getMessage())->toContain('refresh token')
+            ->and($e->getMessage())->toContain('Token has been revoked');
+    }
+});
+
+test('the message of a refused renewal never includes the refresh token or the secret', function () {
+    Http::fake([TOKEN_URL => Http::response(['error' => 'invalid_client'], 401)]);
+
+    try {
+        renew();
+        $this->fail('UserTokenRejected was not thrown');
+    } catch (UserTokenRejected $e) {
+        expect($e->getMessage())->not->toContain('the-refresh-token')
+            ->and($e->getMessage())->not->toContain('login-secret');
+    }
+});
+
+test('the rate limit is a refusal that does not open the circuit', function () {
+    Http::fake([TOKEN_URL => Http::response(['type' => 'about:blank', 'status' => 429], 429, ['Retry-After' => '30'])]);
+
+    for ($i = 0; $i < 6; $i++) {
+        try {
+            renew();
+            $this->fail('UserTokenRejected was not thrown');
+        } catch (UserTokenRejected $e) {
+            expect($e->status)->toBe(429);
+        }
+    }
+
+    expect(app(ApiAuthClient::class)->circuit()->allowsRequest())->toBeTrue();
+});
+
+test('a renewal with the circuit open sends nothing', function () {
+    Http::fake();
+
+    for ($i = 0; $i < 5; $i++) {
+        app(ApiAuthClient::class)->circuit()->recordFailure();
+    }
+
+    expect(fn () => renew())->toThrow(AuthServerUnavailable::class);
+    Http::assertNothingSent();
+});
+
+test('a renewal that cannot connect is API-Auth being unavailable', function () {
+    Http::fake([TOKEN_URL => connectionRefused()]);
+
+    renew();
+})->throws(AuthServerUnavailable::class);

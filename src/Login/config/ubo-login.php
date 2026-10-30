@@ -63,4 +63,33 @@ return [
     // Seconds a started login may take before its state expires.
     'state_ttl' => (int) env('UBO_LOGIN_STATE_TTL', 600),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Session of the login
+    |--------------------------------------------------------------------------
+    |
+    | The tokens of the person (access and refresh) live in a vault in the cache, encrypted;
+    | the Laravel session only keeps a random handle to it. Each renewal revokes the previous
+    | access token and each refresh token works once, so there must be a single copy.
+    |
+    | The store must be shared by every server of the application (redis or database) and
+    | support locks. When empty, the application's default cache store is used.
+    |
+    */
+
+    'store' => env('UBO_LOGIN_STORE'),
+
+    // Seconds before the access token expires at which it is renewed with the refresh token.
+    'refresh_margin' => env('UBO_LOGIN_REFRESH_MARGIN', 60),
+
+    // Seconds between two checks with IAM that the token is still active (introspection and
+    // hybrid strategies, with machine credentials). 0 turns it off.
+    'revalidate' => env('UBO_LOGIN_REVALIDATE', 300),
+
+    // Seconds the session may last since the login, however much it is renewed. 0 for no limit.
+    'max_age' => env('UBO_LOGIN_MAX_AGE', 43200),
+
+    // Seconds a vault entry lives without being renewed: the inactivity IAM's refresh token tolerates.
+    'refresh_ttl' => env('UBO_LOGIN_REFRESH_TTL', 7200),
+
 ];

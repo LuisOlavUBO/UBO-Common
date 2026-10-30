@@ -12,7 +12,7 @@ dentro de cada aplicación (`vendor/ubo/common`) y corre en su mismo proceso.
 | `Problems` | APIs | Errores en RFC 9457 (`application/problem+json`) con código estable en `error`: `ProblemRenderer` y `DomainProblem` | [docs/modules/problems.md](docs/modules/problems.md) |
 | `Health` | APIs | Endpoint de salud `GET /api/<nombre>/v1/salud` que revisa la base de datos: `HealthController` | [docs/modules/health.md](docs/modules/health.md) |
 | `SqlServer` | Aplicaciones con SQL Server | `SET DATEFORMAT ymd` en cada conexión `sqlsrv` (**apagado** por defecto) | [docs/modules/sqlserver.md](docs/modules/sqlserver.md) |
-| `Login` | Monolitos Laravel | Login de personas en **IAM** (Authorization Code + PKCE), usuario con roles y scopes, `@can` y logout (**apagado** por defecto) | [docs/modules/login.md](docs/modules/login.md) |
+| `Login` | Monolitos Laravel | Login de personas en **IAM** (Authorization Code + PKCE), usuario con roles y scopes, `@can`, renovación del token y logout (**apagado** por defecto) | [docs/modules/login.md](docs/modules/login.md) |
 
 Reglas para agregar módulos nuevos: [docs/framework.md](docs/framework.md).
 
@@ -100,6 +100,7 @@ Route::get('v1/salud', \UBO\Common\Health\Http\Controllers\HealthController::cla
 | `UBO_HEALTH_CONNECTION` | Health | Conexión que revisa el endpoint de salud (vacío: la por defecto) |
 | `UBO_SQLSERVER_DATE_FORMAT` | SqlServer | Formato de `SET DATEFORMAT` (`ymd` por defecto) |
 | `UBO_LOGIN_PUBLIC_URL` / `UBO_LOGIN_CLIENT_ID` / `UBO_LOGIN_CLIENT_SECRET` | Login | Dirección pública de IAM y credenciales del cliente de login de esta aplicación |
+| `UBO_LOGIN_STORE` / `UBO_LOGIN_REFRESH_MARGIN` / `UBO_LOGIN_REVALIDATE` / `UBO_LOGIN_MAX_AGE` / `UBO_LOGIN_REFRESH_TTL` | Login | Almacén de caché de la bóveda de tokens (compartido y con bloqueos), margen de renovación (60 s), revalidación contra IAM (300 s; 0 la apaga), tope de la sesión (43200 s; 0 sin tope) y TTL de la bóveda (7200 s) |
 | `UBO_COMMON_AUTH` / `UBO_COMMON_API_CLIENT` / `UBO_COMMON_TRACING` / `UBO_COMMON_PROBLEMS` / `UBO_COMMON_HEALTH` | — | Activar o desactivar cada módulo (`true` por defecto) |
 | `UBO_COMMON_SQLSERVER` / `UBO_COMMON_LOGIN` | — | Activar los módulos SqlServer y Login (`false` por defecto) |
 

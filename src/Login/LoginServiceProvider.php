@@ -8,11 +8,15 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use LogicException;
 use UBO\Common\Auth\AuthSettings;
+use UBO\Common\Auth\Contracts\LocalTokenValidator;
+use UBO\Common\Auth\Contracts\TokenValidator;
 use UBO\Common\Auth\Contracts\UserTokenClient;
 use UBO\Common\Login\Domain\UboUser;
 use UBO\Common\Login\Http\Controllers\LoginController;
 use UBO\Common\Login\Http\Middleware\EnsureLoggedIn;
 use UBO\Common\Login\Http\Middleware\RequireRole;
+use UBO\Common\Login\Infrastructure\LoginTokens;
+use UBO\Common\Login\Infrastructure\TokenVault;
 use UBO\Common\Login\Infrastructure\UboGuard;
 use UBO\Common\Support\ModuleServiceProvider;
 
@@ -36,6 +40,22 @@ final class LoginServiceProvider extends ModuleServiceProvider
 
     protected function registerModule(): void
     {
+        $this->app->bind(TokenVault::class, fn (Application $app) => new TokenVault(
+            $app['cache']->store($app->make(LoginSettings::class)->store),
+            $app['encrypter'],
+            $app->make(LoginSettings::class)->refreshTtl,
+        ));
+
+        $this->app->bind(LoginTokens::class, fn (Application $app) => new LoginTokens(
+            $app->make(LoginSettings::class),
+            $app->make(AuthSettings::class),
+            $app->make(TokenVault::class),
+            $app->make(UserTokenClient::class),
+            $app->make(LocalTokenValidator::class),
+            fn () => $app->make(TokenValidator::class),
+            $app->make('log'),
+        ));
+
         // Resolved on every use (not a singleton) so config changes, e.g. in tests, apply at once.
         $this->app->bind(LoginSettings::class, function (Application $app) {
             if (! $app->bound(UserTokenClient::class)) {
@@ -62,7 +82,7 @@ final class LoginServiceProvider extends ModuleServiceProvider
     {
         $this->app['auth']->extend('ubo', fn (Application $app) => new UboGuard(
             fn () => $app['request'],
-            $app->make(AuthSettings::class),
+            fn () => $app->make(LoginTokens::class),
         ));
 
         // Available as auth:ubo without touching config/auth.php; the default guard stays as it is.

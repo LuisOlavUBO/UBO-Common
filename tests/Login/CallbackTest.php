@@ -11,13 +11,20 @@ test('a login that comes back with its state and a code starts the session', fun
 
     $this->withBrowserSession()->get('/iam/callback?code=the-code&state='.$state)->assertRedirect('/');
 
-    expect(session('ubo_login'))->toMatchArray([
+    expect(vaultEntry())->toMatchArray([
         'id' => '42',
         'client_id' => 'login-client',
         'roles' => ['coordinador'],
         'scopes' => ['geografia:leer'],
         'audiences' => ['login-client', 'api-maestros'],
+        'refresh_token' => 'refresh-token',
     ])->and(session('ubo_login_pending'))->toBeNull();
+});
+
+test('a login without a refresh token keeps none', function () {
+    loggedIn(refreshToken: null);
+
+    expect(vaultEntry())->toMatchArray(['id' => '42', 'refresh_token' => null]);
 });
 
 test('the code is exchanged with the verifier of the session and the login client', function () {
@@ -185,7 +192,7 @@ test('the login works without machine credentials and never introspects', functi
     $this->withBrowserSession()->get('/iam/callback?code=the-code&state='.$state)->assertRedirect('/');
 
     Http::assertSentCount(1);
-    expect(session('ubo_login.id'))->toBe('42');
+    expect(vaultEntry()['id'])->toBe('42');
 });
 
 test('the session id of before the login stops carrying anything', function () {

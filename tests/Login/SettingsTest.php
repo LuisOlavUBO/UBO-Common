@@ -105,3 +105,66 @@ test('without a login module the auth module is required', function () {
 
     app(LoginSettings::class);
 })->throws(LogicException::class, 'needs the auth module');
+
+test('the session of the login has defaults when nothing is configured', function () {
+    $settings = loginSettings([]);
+
+    expect($settings->store)->toBeNull()
+        ->and($settings->refreshMargin)->toBe(60)
+        ->and($settings->revalidate)->toBe(300)
+        ->and($settings->maxAge)->toBe(43200)
+        ->and($settings->refreshTtl)->toBe(7200);
+});
+
+test('empty values of the session of the login use the defaults', function () {
+    $settings = loginSettings(['store' => '', 'refresh_margin' => '', 'revalidate' => '', 'max_age' => '', 'refresh_ttl' => '']);
+
+    expect($settings->store)->toBeNull()
+        ->and($settings->refreshMargin)->toBe(60)
+        ->and($settings->revalidate)->toBe(300)
+        ->and($settings->maxAge)->toBe(43200)
+        ->and($settings->refreshTtl)->toBe(7200);
+});
+
+test('values of the session of the login are read from strings, as the .env gives them', function () {
+    $settings = loginSettings(['store' => 'redis', 'refresh_margin' => '120', 'revalidate' => '60', 'max_age' => '3600', 'refresh_ttl' => '1800']);
+
+    expect($settings->store)->toBe('redis')
+        ->and($settings->refreshMargin)->toBe(120)
+        ->and($settings->revalidate)->toBe(60)
+        ->and($settings->maxAge)->toBe(3600)
+        ->and($settings->refreshTtl)->toBe(1800);
+});
+
+test('zero turns off the revalidation and the limit of the session', function () {
+    $settings = loginSettings(['revalidate' => '0', 'max_age' => 0]);
+
+    expect($settings->revalidate)->toBe(0)
+        ->and($settings->maxAge)->toBe(0);
+});
+
+test('a zero margin or time to live uses the default', function () {
+    $settings = loginSettings(['refresh_margin' => 0, 'refresh_ttl' => '0']);
+
+    expect($settings->refreshMargin)->toBe(60)
+        ->and($settings->refreshTtl)->toBe(7200);
+});
+
+test('non numeric or negative values of the session of the login use the defaults', function (mixed $value) {
+    $settings = loginSettings(['refresh_margin' => $value, 'revalidate' => $value, 'max_age' => $value, 'refresh_ttl' => $value]);
+
+    expect($settings->refreshMargin)->toBe(60)
+        ->and($settings->revalidate)->toBe(300)
+        ->and($settings->maxAge)->toBe(43200)
+        ->and($settings->refreshTtl)->toBe(7200);
+})->with(['soon', -5, null]);
+
+test('the settings of the session of the login come from the config file', function () {
+    config(['ubo-login.store' => 'login', 'ubo-login.max_age' => 0]);
+
+    expect(app(LoginSettings::class)->store)->toBe('login')
+        ->and(app(LoginSettings::class)->maxAge)->toBe(0)
+        ->and(config('ubo-login.refresh_margin'))->toBe(60)
+        ->and(config('ubo-login.revalidate'))->toBe(300)
+        ->and(config('ubo-login.refresh_ttl'))->toBe(7200);
+});

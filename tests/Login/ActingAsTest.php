@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
@@ -24,8 +25,21 @@ test('the person is not logged in until the test says so', function () {
 test('the audiences include the client id and the ones given', function () {
     UboLogin::actingAs(audiences: ['api-maestros'], clientId: 'portal-web');
 
-    expect(session('ubo_login.audiences'))->toBe(['portal-web', 'api-maestros'])
-        ->and(session('ubo_login.client_id'))->toBe('portal-web');
+    expect(vaultEntry()['audiences'])->toBe(['portal-web', 'api-maestros'])
+        ->and(vaultEntry()['client_id'])->toBe('portal-web');
+});
+
+test('the login of a test lives in the vault and is never renewed or checked with IAM', function () {
+    Http::fake();
+    UboLogin::actingAs(id: '42', ttl: 3600);
+
+    $this->travel(59)->minutes();
+
+    expect(Auth::guard('ubo')->check())->toBeTrue()
+        ->and(session('ubo_login'))->toBeString()
+        ->and(vaultEntry()['id'])->toBe('42')
+        ->and(vaultEntry()['access_token'])->toBe('test-access-token');
+    Http::assertNothingSent();
 });
 
 test('it cannot be used in production', function () {

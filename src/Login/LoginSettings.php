@@ -17,6 +17,14 @@ final readonly class LoginSettings
 
     private const STATE_TTL = 600;
 
+    private const REFRESH_MARGIN = 60;
+
+    private const REVALIDATE = 300;
+
+    private const MAX_AGE = 43200;
+
+    private const REFRESH_TTL = 7200;
+
     public function __construct(
         public ?string $publicUrl,
         public ?string $clientId,
@@ -28,6 +36,11 @@ final readonly class LoginSettings
         public ?string $prompt,
         public int $stateTtl,
         public ?string $appUrl,
+        public ?string $store = null,
+        public int $refreshMargin = self::REFRESH_MARGIN,
+        public int $revalidate = self::REVALIDATE,
+        public int $maxAge = self::MAX_AGE,
+        public int $refreshTtl = self::REFRESH_TTL,
     ) {}
 
     /**
@@ -48,6 +61,12 @@ final readonly class LoginSettings
             prompt: ($config['prompt'] ?? null) === 'login' ? 'login' : null,
             stateTtl: ConfigValue::positiveInt($config['state_ttl'] ?? null, self::STATE_TTL),
             appUrl: filled($appUrl) ? rtrim((string) $appUrl, '/') : null,
+            store: filled($config['store'] ?? null) ? (string) $config['store'] : null,
+            refreshMargin: ConfigValue::positiveInt($config['refresh_margin'] ?? null, self::REFRESH_MARGIN),
+            // 0 turns the check off, so only a missing or non numeric value falls back to the default.
+            revalidate: ConfigValue::nonNegativeInt($config['revalidate'] ?? null, self::REVALIDATE),
+            maxAge: ConfigValue::nonNegativeInt($config['max_age'] ?? null, self::MAX_AGE),
+            refreshTtl: ConfigValue::positiveInt($config['refresh_ttl'] ?? null, self::REFRESH_TTL),
         );
     }
 

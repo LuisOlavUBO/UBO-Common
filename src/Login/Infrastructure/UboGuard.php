@@ -7,13 +7,12 @@ use DateTimeImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\Request;
-use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Login\Domain\UboUser;
 
 /**
- * The guard "ubo": the person is whoever the login left in the session, for as long as their
- * access token lives. It keeps no user of its own between calls, so a new request or a new
- * test never sees the previous one's.
+ * The guard "ubo": the person is whoever the login left in the session, for as long as the
+ * session of the login lasts (LoginTokens renews, checks and ends it). It keeps no user of its
+ * own between calls, so a new request or a new test never sees the previous one's.
  */
 final class UboGuard implements Guard
 {
@@ -21,10 +20,11 @@ final class UboGuard implements Guard
 
     /**
      * @param  Closure(): Request  $request
+     * @param  Closure(): LoginTokens  $tokens  resolved only when a person has a login
      */
     public function __construct(
         private readonly Closure $request,
-        private readonly AuthSettings $settings,
+        private readonly Closure $tokens,
     ) {}
 
     public function user(): ?UboUser
@@ -39,16 +39,12 @@ final class UboGuard implements Guard
             return null;
         }
 
-        $session = new LoginSession($request->session());
-
-        if (($login = $session->current()) === null) {
+        if (($handle = LoginSession::handleIn($request->session())) === null) {
             return null;
         }
 
-        // The token is not renewed here: when it expires the person goes through IAM again.
-        if (now()->getTimestamp() >= $login['expires_at'] - $this->settings->leeway) {
-            $session->forget();
-
+        // A session that ended (or whose vault entry is gone) leaves only a handle that opens nothing.
+        if (($login = ($this->tokens)()->current($handle)) === null) {
             return null;
         }
 

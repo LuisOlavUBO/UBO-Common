@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use UBO\Common\Login\Testing\UboLogin;
@@ -48,6 +49,51 @@ test('IAM not answering the revocation does not stop the logout', function () {
 
     expect(session('ubo_login'))->toBeNull();
     Log::shouldHaveReceived('warning')->once();
+});
+
+test('the logout revokes the renewed token, not the one the login handed out', function () {
+    defineWhoami();
+    $handle = loggedIn($first = personToken());
+    $this->travel(3545)->seconds();
+    iamRenews($renewed = personToken());
+    whoami()->assertJson(['check' => true]);
+    Http::fake([IAM_LOGOUT_URL => Http::response(['message' => 'Session closed.'])]);
+
+    $this->withBrowserSession()->post('/iam/logout')->assertRedirectContains('https://iam.test/api/auth/logout?');
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn (Request $request) => $request->url() === IAM_LOGOUT_URL
+        && $request->header('Authorization') === ['Bearer '.$renewed]
+        && $request->header('Authorization') !== ['Bearer '.$first]);
+    expect(vaultEntry($handle))->toBeNull();
+});
+
+test('the logout deletes the vault entry even when IAM does not answer', function () {
+    $handle = loggedIn();
+    Http::fake([IAM_LOGOUT_URL => connectionRefused()]);
+
+    $this->withBrowserSession()->post('/iam/logout')->assertRedirectContains('https://iam.test/api/auth/logout?');
+
+    expect(vaultEntry($handle))->toBeNull();
+});
+
+test('a local logout deletes the vault entry', function () {
+    $handle = loggedIn();
+    Http::fake([IAM_LOGOUT_URL => Http::response([])]);
+
+    $this->withBrowserSession()->post('/iam/logout', ['scope' => 'local'])->assertRedirect('/');
+
+    expect(vaultEntry($handle))->toBeNull();
+});
+
+test('the handle of a closed session opens nothing', function () {
+    $handle = loggedIn();
+    Http::fake([IAM_LOGOUT_URL => Http::response([])]);
+
+    $this->withBrowserSession()->post('/iam/logout');
+    app('session.store')->put('ubo_login', $handle);
+
+    expect(Auth::guard('ubo')->check())->toBeFalse();
 });
 
 test('a person without a session goes to IAM without revoking anything', function () {

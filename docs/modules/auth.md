@@ -56,13 +56,14 @@ negativo:
 ### Rutas de API-Auth
 
 Las rutas de los endpoints las fija el paquete, relativas a `UBO_AUTH_URL`: `/api/auth/oauth/token`,
-`/api/auth/v1/introspect` y `/api/auth/v1/public-key`. Un `config/ubo-auth.php` publicado no las
+`/api/auth/v1/introspect`, `/api/auth/v1/public-key` y `/api/auth/v1/logout`. Un `config/ubo-auth.php` publicado no las
 congela: su arreglo `endpoints` se ignora. Para reemplazar una ruta, solo si API-Auth la cambia:
 
 ```dotenv
 UBO_AUTH_ENDPOINT_TOKEN=/api/auth/oauth/token
 UBO_AUTH_ENDPOINT_INTROSPECT=/api/auth/v1/introspect
 UBO_AUTH_ENDPOINT_PUBLIC_KEY=/api/auth/v1/public-key
+UBO_AUTH_ENDPOINT_LOGOUT=/api/auth/v1/logout
 ```
 
 Vacías, se usa la ruta del paquete.
@@ -237,3 +238,14 @@ Lo que no cambia con el modo degradado:
 - Un token falsificado o vencido se rechaza siempre (401), sin consultar a API-Auth.
 - Si API-Auth responde que el token está inactivo, se rechaza (401).
 - No aplica a la estrategia `introspection`, que no tiene validación local: sigue respondiendo 503.
+
+## 8. Tokens de una persona (para el módulo Login)
+
+Además del token de la propia aplicación (`ServiceTokenProvider`), Auth ofrece `Contracts\UserTokenClient`,
+que el módulo [Login](login.md) usa para canjear el código de autorización (`POST /api/auth/oauth/token`) y para
+revocar el token de una persona (`POST /api/auth/v1/logout`). Comparte los timeouts, la traza y el circuito de las
+demás llamadas a API-Auth. Si API-Auth rechaza el canje lanza `UserTokenRejected` (con `status` y `error`, sin el
+código, el verificador ni el secreto en el mensaje); si no responde, `AuthServerUnavailable`.
+
+`Contracts\LocalTokenValidator` es el validador local (firma y vigencia) sin importar `UBO_AUTH_STRATEGY`, para
+tokens que API-Auth acaba de entregar a esta aplicación.

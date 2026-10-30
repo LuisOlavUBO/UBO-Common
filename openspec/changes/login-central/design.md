@@ -79,7 +79,10 @@ La motivación está en el proposal (ver "Why") y los comportamientos exigidos, 
   (un nombre de rol puede coincidir con uno de scope); se consultan con `hasRole()` y el middleware `ubo.role`.
 - **`ubo.login` lanza `AuthenticationException` con `redirectTo`** hacia la ruta de login, en vez de redirigir él
   mismo: Laravel decide entre redirección y 401 según la petición, y recuerda la página pedida con
-  `redirect()->guest()`.
+  `redirect()->guest()`. Con sesión, hace `shouldUse('ubo')` (como `auth:ubo`): `Gate` resuelve al usuario con el
+  guard por defecto, así que sin esto un monolito con otro guard por defecto no vería los scopes.
+- **Claves de sesión sin puntos compartidos** (`ubo_login` y `ubo_login_pending`): la sesión de Laravel trata los
+  puntos como anidación, y `ubo.login` con `ubo.login.pending` habrían quedado una dentro de la otra.
 - **Errores como excepciones**: `LoginFailed` (400 o 403) y `NoAccess` (403) heredan de las HTTP de Symfony, y la
   caída de IAM sigue siendo `AuthServerUnavailable`, que el módulo `problems` ya presenta como 503.
 - **Sesión tras vencer el token, sin renovar**: el guard devuelve `null` cuando vence el token (menos

@@ -12,7 +12,8 @@ return [
     | keeps its own configuration file (config/ubo-<module>.php).
     |
     | sqlserver is off by default: it changes how every sqlsrv connection
-    | behaves, so each application turns it on explicitly.
+    | behaves, so each application turns it on explicitly. So is login: it
+    | registers routes, a guard and Gate rules for logging in with IAM.
     |
     */
 
@@ -23,6 +24,7 @@ return [
         'problems' => (bool) env('UBO_COMMON_PROBLEMS', true),
         'health' => (bool) env('UBO_COMMON_HEALTH', true),
         'sqlserver' => (bool) env('UBO_COMMON_SQLSERVER', false),
+        'login' => (bool) env('UBO_COMMON_LOGIN', false),
     ],
 
 ];

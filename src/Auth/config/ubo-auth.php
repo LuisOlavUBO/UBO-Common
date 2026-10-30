@@ -9,7 +9,7 @@ return [
     |
     | Base URL of API-Auth, the only service that issues tokens. The endpoint
     | paths are fixed by the package to API-Auth's routes (/api/auth/oauth/token,
-    | /api/auth/v1/introspect, /api/auth/v1/public-key), so a published copy of
+    | /api/auth/v1/introspect, /api/auth/v1/public-key, /api/auth/v1/logout), so a published copy of
     | this file never freezes them. Set a variable only to replace one; empty
     | means the package's route. An "endpoints" array from an older version of
     | this file is ignored.
@@ -22,6 +22,7 @@ return [
         'token' => env('UBO_AUTH_ENDPOINT_TOKEN'),
         'introspect' => env('UBO_AUTH_ENDPOINT_INTROSPECT'),
         'public_key' => env('UBO_AUTH_ENDPOINT_PUBLIC_KEY'),
+        'logout' => env('UBO_AUTH_ENDPOINT_LOGOUT'),
     ],
 
     /*

@@ -107,4 +107,5 @@ segunda aplicación:
 | `Responses` | Formato `{data, meta}` | Maestros2 (`ApiResource`, `ApiCollection`) |
 | `HttpCache` | ETag y caché versionada por dominio | Maestros2 (`CacheHttp`, `VersionCacheDominio`) |
 
-`SqlServer`, `Problems` y `Health` ya son módulos (versión 2.3.0).
+`SqlServer`, `Problems` y `Health` ya son módulos (versión 2.3.0). `Login` (monolitos que inician sesión
+con IAM) es el primero que registra rutas y viene apagado por defecto, como `SqlServer`.

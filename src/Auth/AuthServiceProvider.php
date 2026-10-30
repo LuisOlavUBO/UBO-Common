@@ -7,12 +7,15 @@ use Illuminate\Routing\Router;
 use InvalidArgumentException;
 use Psr\Clock\ClockInterface;
 use UBO\Common\Auth\Console\CheckCommand;
+use UBO\Common\Auth\Contracts\LocalTokenValidator;
 use UBO\Common\Auth\Contracts\PublicKeyProvider;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Auth\Contracts\TokenValidator;
+use UBO\Common\Auth\Contracts\UserTokenClient;
 use UBO\Common\Auth\Http\Middleware\Authenticate;
 use UBO\Common\Auth\Infrastructure\HttpPublicKeyProvider;
 use UBO\Common\Auth\Infrastructure\HttpServiceTokenProvider;
+use UBO\Common\Auth\Infrastructure\HttpUserTokenClient;
 use UBO\Common\Auth\Infrastructure\LaravelClock;
 use UBO\Common\Auth\Infrastructure\StaticPublicKeyProvider;
 use UBO\Common\Auth\Infrastructure\Validators\HybridValidator;
@@ -21,8 +24,9 @@ use UBO\Common\Auth\Infrastructure\Validators\JwtValidator;
 use UBO\Common\Support\ModuleServiceProvider;
 
 /**
- * Auth module: validates API-Auth tokens ("ubo.auth" middleware) and gets this
- * application's own tokens from API-Auth (ServiceTokenProvider).
+ * Auth module: validates API-Auth tokens ("ubo.auth" middleware), gets this
+ * application's own tokens from API-Auth (ServiceTokenProvider) and those of a person
+ * (UserTokenClient).
  */
 final class AuthServiceProvider extends ModuleServiceProvider
 {
@@ -57,6 +61,10 @@ final class AuthServiceProvider extends ModuleServiceProvider
         });
 
         $this->app->bind(ServiceTokenProvider::class, HttpServiceTokenProvider::class);
+
+        $this->app->bind(UserTokenClient::class, HttpUserTokenClient::class);
+
+        $this->app->bind(LocalTokenValidator::class, JwtValidator::class);
 
         $this->app->bind(self::INTROSPECTION, IntrospectionValidator::class);
 

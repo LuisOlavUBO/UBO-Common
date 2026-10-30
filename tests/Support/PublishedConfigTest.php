@@ -90,3 +90,11 @@ test('a ubo-auth published with 3.0.0 gets the circuit breaker defaults and the 
         ->and($settings->connectTimeout)->toBe(2)
         ->and($settings->degradedMode)->toBeFalse();
 });
+
+test('a config/ubo-common.php published before the login module existed leaves it off', function () {
+    TestCase::$bootConfig = ['ubo-common.modules.tracing' => true];
+    $this->refreshApplication();
+
+    expect(config('ubo-common.modules.login'))->toBeFalse()
+        ->and(app(Router::class)->getMiddleware())->not->toHaveKey('ubo.login');
+});

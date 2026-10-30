@@ -17,8 +17,8 @@ use Lcobucci\JWT\Validation\Validator;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use UBO\Common\Auth\AuthSettings;
+use UBO\Common\Auth\Contracts\LocalTokenValidator;
 use UBO\Common\Auth\Contracts\PublicKeyProvider;
-use UBO\Common\Auth\Contracts\TokenValidator;
 use UBO\Common\Auth\Domain\VerifiedToken;
 use UBO\Common\Auth\Exceptions\AuthServerUnavailable;
 use UBO\Common\Auth\Exceptions\InvalidToken;
@@ -29,7 +29,7 @@ use UBO\Common\Auth\Testing\TestKey;
  * exp/nbf/iat. No network calls (besides downloading the key once), so it cannot see
  * revocations made before the token expires.
  */
-final class JwtValidator implements TokenValidator
+final class JwtValidator implements LocalTokenValidator
 {
     public function __construct(
         private readonly PublicKeyProvider $keys,

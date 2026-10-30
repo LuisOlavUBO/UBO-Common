@@ -21,6 +21,41 @@ function failTimes(CircuitBreaker $circuit, int $times): void
     }
 }
 
+test('a success on a healthy circuit writes nothing to the cache', function () {
+    $store = new class extends ArrayStore
+    {
+        public int $writes = 0;
+
+        public function put($key, $value, $seconds)
+        {
+            $this->writes++;
+
+            return parent::put($key, $value, $seconds);
+        }
+
+        public function forget($key)
+        {
+            $this->writes++;
+
+            return parent::forget($key);
+        }
+    };
+
+    circuit(new Repository($store))->recordSuccess();
+
+    expect($store->writes)->toBe(0);
+});
+
+test('a success after failures still resets the count', function () {
+    $circuit = circuit();
+    failTimes($circuit, 2);
+
+    $circuit->recordSuccess();
+    failTimes($circuit, 2);
+
+    expect($circuit->allowsRequest())->toBeTrue();
+});
+
 test('the circuit opens after the configured failures in a row', function () {
     $circuit = circuit();
 

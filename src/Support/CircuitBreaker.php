@@ -69,7 +69,15 @@ final class CircuitBreaker
     public function recordSuccess(): void
     {
         try {
-            $wasOpen = (int) $this->cache->get($this->key('failures'), 0) >= $this->failures;
+            $failures = (int) $this->cache->get($this->key('failures'), 0);
+
+            // A healthy circuit has nothing to reset: one read per success, no writes. The open
+            // and probe keys only exist while the count does (it outlives them).
+            if ($failures === 0) {
+                return;
+            }
+
+            $wasOpen = $failures >= $this->failures;
 
             $this->cache->forget($this->key('failures'));
             $this->cache->forget($this->key('open'));

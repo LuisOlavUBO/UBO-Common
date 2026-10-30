@@ -98,3 +98,30 @@ test('an empty cache store means the default store', function () {
     expect(authSettingsWith('cache.store', '')->cacheStore)->toBeNull()
         ->and(authSettingsWith('cache.store', 'redis')->cacheStore)->toBe('redis');
 });
+
+test('the resilience values use their defaults when empty, zero or missing', function (string $key, string $property, int $default, mixed $value) {
+    expect(authSettingsWith($key, $value)->{$property})->toBe($default);
+})->with([
+    'connect timeout' => ['connect_timeout', 'connectTimeout', 2],
+    'circuit failures' => ['circuit_breaker.failures', 'circuitFailures', 5],
+    'circuit cooldown' => ['circuit_breaker.cooldown', 'circuitCooldown', 30],
+])->with([
+    'empty' => [''],
+    'null' => [null],
+    'zero' => ['0'],
+]);
+
+test('the connect timeout is never longer than the timeout', function () {
+    expect(AuthSettings::fromConfig(['timeout' => 3, 'connect_timeout' => 10])->connectTimeout)->toBe(3)
+        ->and(AuthSettings::fromConfig(['timeout' => 5, 'connect_timeout' => 1])->connectTimeout)->toBe(1);
+});
+
+test('the degraded mode is off unless explicitly turned on', function (mixed $value, bool $on) {
+    expect(authSettingsWith('degraded_mode', $value)->degradedMode)->toBe($on);
+})->with([
+    'missing' => [null, false],
+    'empty' => ['', false],
+    'false' => [false, false],
+    'true' => [true, true],
+    'string true' => ['true', true],
+]);

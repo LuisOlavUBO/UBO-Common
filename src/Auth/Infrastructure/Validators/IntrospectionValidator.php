@@ -5,8 +5,6 @@ namespace UBO\Common\Auth\Infrastructure\Validators;
 use DateTimeImmutable;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\Response;
 use Psr\Clock\ClockInterface;
 use UBO\Common\Auth\AuthSettings;
@@ -16,7 +14,8 @@ use UBO\Common\Auth\Domain\VerifiedToken;
 use UBO\Common\Auth\Exceptions\AuthServerUnavailable;
 use UBO\Common\Auth\Exceptions\InvalidToken;
 use UBO\Common\Auth\Exceptions\ServiceTokenException;
-use UBO\Common\Tracing\Contracts\TraceContext;
+use UBO\Common\Auth\Infrastructure\ApiAuthClient;
+use UBO\Common\Auth\Infrastructure\ApiAuthUnreachable;
 
 /**
  * Asks API-Auth whether a token is active (POST /api/auth/v1/introspect), authenticating
@@ -31,11 +30,10 @@ final class IntrospectionValidator implements TokenValidator
 
     public function __construct(
         private readonly AuthSettings $settings,
-        private readonly HttpFactory $http,
+        private readonly ApiAuthClient $apiAuth,
         private readonly ServiceTokenProvider $serviceTokens,
         private readonly ClockInterface $clock,
         CacheFactory $cache,
-        private readonly ?TraceContext $trace = null,
     ) {
         $this->cache = $cache->store($settings->cacheStore);
     }
@@ -84,8 +82,8 @@ final class IntrospectionValidator implements TokenValidator
                 $this->serviceTokens->forget([self::SCOPE]);
                 $response = $this->send($url, $token);
             }
-        } catch (ConnectionException $e) {
-            throw new AuthServerUnavailable('Could not reach API-Auth introspection.', $e);
+        } catch (ApiAuthUnreachable $e) {
+            throw new AuthServerUnavailable('Could not check the token with API-Auth: '.$e->getMessage(), $e);
         } catch (ServiceTokenException $e) {
             throw new AuthServerUnavailable('Could not authenticate against API-Auth: '.$e->getMessage(), $e);
         }
@@ -112,12 +110,14 @@ final class IntrospectionValidator implements TokenValidator
 
     private function send(string $url, string $token): Response
     {
-        return $this->http
-            ->timeout($this->settings->timeout)
+        // Our own token first: getting it may call API-Auth too, and must not compete for
+        // the circuit's probe with this call.
+        $bearer = $this->serviceTokens->token([self::SCOPE]);
+
+        return $this->apiAuth->send(fn ($request) => $request
             ->acceptJson()
-            ->withHeaders($this->trace?->headers() ?? [])
-            ->withToken($this->serviceTokens->token([self::SCOPE]))
-            ->post($url, ['token' => $token]);
+            ->withToken($bearer)
+            ->post($url, ['token' => $token]));
     }
 
     /**

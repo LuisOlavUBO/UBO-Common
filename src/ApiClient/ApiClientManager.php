@@ -3,6 +3,9 @@
 namespace UBO\Common\ApiClient;
 
 use GuzzleHttp\Utils;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -10,6 +13,7 @@ use Illuminate\Http\Client\Response;
 use LogicException;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
+use UBO\Common\Support\CircuitBreaker;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
@@ -24,6 +28,9 @@ final class ApiClientManager
     /** @var array<string, string> API name => fake base URL, set by fake(). */
     private array $fakedApis = [];
 
+    /** Store of the circuits while faking, so every test starts with them closed. */
+    private ?CacheRepository $fakedCircuitStore = null;
+
     public function __construct(
         private readonly Config $config,
         private readonly HttpFactory $http,
@@ -36,14 +43,18 @@ final class ApiClientManager
      */
     public function call(string $api, ?string $url): UboClient
     {
-        return new UboClient($this->definition($api, $url), $this->http, $this->tokens(), $this->trace());
+        $definition = $this->definition($api, $url);
+
+        return new UboClient($definition, $this->http, $this->tokens(), $this->trace(), $this->circuit($definition));
     }
 
     public function callAsync(string $api, ?string $url): UboAsyncClient
     {
         $this->asyncHandler ??= Utils::chooseHandler();
 
-        return new UboAsyncClient($this->definition($api, $url), $this->http, $this->tokens(), $this->asyncHandler, $this->trace());
+        $definition = $this->definition($api, $url);
+
+        return new UboAsyncClient($definition, $this->http, $this->tokens(), $this->asyncHandler, $this->trace(), $this->circuit($definition));
     }
 
     /**
@@ -104,6 +115,30 @@ final class ApiClientManager
         }
 
         $this->http->fake($fakes);
+        $this->fakedCircuitStore = new CacheRepository(new ArrayStore);
+    }
+
+    /**
+     * The API's circuit, shared by every worker using the "ubo-apis.cache_store" store, or null
+     * when it is disabled for that API.
+     */
+    public function circuit(ApiDefinition $definition): ?CircuitBreaker
+    {
+        if (! $definition->circuitEnabled) {
+            return null;
+        }
+
+        $store = $this->fakedCircuitStore
+            ?? $this->container->make(CacheFactory::class)->store($this->config->get('ubo-apis.cache_store') ?: null);
+
+        return new CircuitBreaker(
+            $definition->name,
+            $store,
+            'ubo-apis:',
+            $definition->circuitFailures,
+            $definition->circuitCooldown,
+            $this->container->make('log'),
+        );
     }
 
     private function tokens(): ServiceTokenProvider

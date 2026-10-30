@@ -44,7 +44,7 @@ final class AuthServiceProvider extends ModuleServiceProvider
         // Resolved on every use (not singletons) so config changes, e.g. in tests, apply at once.
         $this->app->bind(AuthSettings::class, fn (Application $app) => AuthSettings::fromConfig($app['config']->get('ubo-auth')));
 
-        $this->app->when([JwtValidator::class, IntrospectionValidator::class])
+        $this->app->when([JwtValidator::class, IntrospectionValidator::class, HttpServiceTokenProvider::class])
             ->needs(ClockInterface::class)
             ->give(LaravelClock::class);
 
@@ -63,9 +63,23 @@ final class AuthServiceProvider extends ModuleServiceProvider
         $this->app->bind(TokenValidator::class, fn (Application $app) => match ($app->make(AuthSettings::class)->strategy) {
             'jwt' => $app->make(JwtValidator::class),
             'introspection' => $app->make(self::INTROSPECTION),
-            'hybrid' => new HybridValidator($app->make(JwtValidator::class), $app->make(self::INTROSPECTION)),
+            'hybrid' => $this->hybridValidator($app),
             default => throw new InvalidArgumentException('UBO_AUTH_STRATEGY must be jwt, introspection or hybrid.'),
         });
+    }
+
+    private function hybridValidator(Application $app): HybridValidator
+    {
+        $settings = $app->make(AuthSettings::class);
+
+        return new HybridValidator(
+            $app->make(JwtValidator::class),
+            $app->make(self::INTROSPECTION),
+            $settings->degradedMode,
+            $app->make('log'),
+            $app['cache']->store($settings->cacheStore),
+            $settings->cachePrefix,
+        );
     }
 
     protected function bootModule(): void

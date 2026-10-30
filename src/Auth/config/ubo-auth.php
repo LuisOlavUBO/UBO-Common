@@ -98,8 +98,38 @@ return [
     ],
 
     /*
-    | Timeout (seconds) for calls to API-Auth.
+    | Timeout (seconds) for calls to API-Auth, and for establishing the connection
+    | (never longer than the timeout). A short connect timeout fails fast when
+    | API-Auth's host does not accept connections.
     */
     'timeout' => (int) env('UBO_AUTH_TIMEOUT', 5),
+
+    'connect_timeout' => (int) env('UBO_AUTH_CONNECT_TIMEOUT', 2),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Circuit breaker
+    |--------------------------------------------------------------------------
+    |
+    | After "failures" calls to API-Auth in a row fail (connection error,
+    | timeout or 5xx), no call is sent for "cooldown" seconds: token validation
+    | answers 503 at once instead of waiting. Then a single call probes whether
+    | API-Auth is back. The state lives in the cache store above: use a shared
+    | store (redis, database) so every worker and server sees the same circuit.
+    |
+    */
+
+    'circuit_breaker' => [
+        'failures' => (int) env('UBO_AUTH_CIRCUIT_FAILURES', 5),
+        'cooldown' => (int) env('UBO_AUTH_CIRCUIT_COOLDOWN', 30),
+    ],
+
+    /*
+    | Degraded mode (hybrid strategy only, off by default). When introspection
+    | cannot reach API-Auth, accept the tokens that passed the local check
+    | (signature and expiry) instead of answering 503. While API-Auth is down,
+    | revoked tokens are accepted until they expire.
+    */
+    'degraded_mode' => (bool) env('UBO_AUTH_DEGRADED_MODE', false),
 
 ];

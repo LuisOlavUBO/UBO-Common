@@ -43,6 +43,9 @@ negativo:
 | Valor | Por defecto |
 |---|---|
 | `UBO_AUTH_TIMEOUT` | 5 s |
+| `UBO_AUTH_CONNECT_TIMEOUT` | 2 s (nunca mayor que `UBO_AUTH_TIMEOUT`) |
+| `UBO_AUTH_CIRCUIT_FAILURES` | 5 |
+| `UBO_AUTH_CIRCUIT_COOLDOWN` | 30 s |
 | `UBO_AUTH_PUBLIC_KEY_TTL` | 86400 s |
 | `UBO_AUTH_INTROSPECTION_TTL` | 30 s |
 | `cache.service_token_margin` | 60 s |
@@ -171,3 +174,64 @@ ApiClient:
 ```php
 app(UBO\Common\Auth\Contracts\ServiceTokenProvider::class)->token(['geografia:leer']);
 ```
+
+El token queda en caché hasta su vencimiento real. Si al renovarlo API-Auth no responde (error de
+conexión, timeout, 5xx o circuito abierto), se sigue usando el token vigente en lugar de fallar. Un
+rechazo de API-Auth (4xx, por ejemplo credenciales revocadas) falla de inmediato, y un token vencido
+nunca se usa.
+
+## 7. Si API-Auth no responde
+
+Cada llamada a API-Auth (clave pública, introspección y token propio) tiene dos límites de tiempo:
+`UBO_AUTH_CONNECT_TIMEOUT` (2 s) para establecer la conexión y `UBO_AUTH_TIMEOUT` (5 s) para la llamada
+completa. Un host que no acepta conexiones falla a los 2 s, sin esperar los 5.
+
+**Circuit breaker.** Las llamadas a API-Auth comparten un circuito. Tras `UBO_AUTH_CIRCUIT_FAILURES` (5)
+fallos seguidos (error de conexión, timeout o 5xx), el circuito se abre por `UBO_AUTH_CIRCUIT_COOLDOWN`
+(30) segundos: mientras tanto **no se llama a API-Auth** y la validación responde 503 de inmediato, sin
+dejar los workers de PHP-FPM esperando. Pasado ese tiempo, una sola petición prueba si API-Auth volvió:
+si responde, el circuito se cierra; si no, se abre otros 30 s. Un 4xx de API-Auth es una respuesta, no
+un fallo, y no abre el circuito. La apertura y el cierre quedan en el log una sola vez (`warning` e
+`info`).
+
+Lo que no necesita a API-Auth sigue funcionando con el circuito abierto: con `jwt` y la clave en caché
+los tokens válidos se aceptan, y el token propio vigente se sigue usando.
+
+```dotenv
+UBO_AUTH_CONNECT_TIMEOUT=2
+UBO_AUTH_CIRCUIT_FAILURES=5
+UBO_AUTH_CIRCUIT_COOLDOWN=30
+UBO_AUTH_CACHE_STORE=redis   # recomendado: circuito compartido entre workers y servidores
+```
+
+El estado del circuito vive en el almacén de caché de Auth (`UBO_AUTH_CACHE_STORE`). Con un almacén
+compartido (Redis o base de datos), cuando un worker detecta la caída todos dejan de insistir. Con `file`
+cada servidor tiene su propio circuito, y con `array` cada proceso: siguen funcionando, pero detectan la
+caída más tarde. Si el almacén de caché falla, el circuito se ignora y las llamadas se hacen igual.
+
+`php artisan ubo:auth:check` muestra el estado del circuito y siempre llama a API-Auth, aunque el
+circuito esté abierto, sin cambiar su estado.
+
+### Modo degradado (opcional, apagado por defecto)
+
+Por defecto la validación **falla cerrada**: si hay que consultar a API-Auth y no responde, la respuesta
+es 503. Con la estrategia `hybrid`, una API puede preferir seguir atendiendo durante una caída:
+
+```dotenv
+UBO_AUTH_STRATEGY=hybrid
+UBO_AUTH_DEGRADED_MODE=true
+```
+
+Con el modo degradado, si la introspección no responde (error de conexión, timeout, 5xx o circuito
+abierto), se acepta el token que pasó la validación local (firma y vigencia) y queda un `warning` en el
+log, como máximo uno por minuto. Es `hybrid` mientras API-Auth responde y `jwt` mientras no.
+
+**Riesgo:** mientras dura la caída, un token **revocado** se acepta hasta que vence. Por eso viene
+apagado y cada API decide: conviene en APIs de consulta con muchos consumidores; no en las que hacen
+operaciones sensibles.
+
+Lo que no cambia con el modo degradado:
+
+- Un token falsificado o vencido se rechaza siempre (401), sin consultar a API-Auth.
+- Si API-Auth responde que el token está inactivo, se rechaza (401).
+- No aplica a la estrategia `introspection`, que no tiene validación local: sigue respondiendo 503.

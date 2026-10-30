@@ -2,6 +2,8 @@
 
 namespace UBO\Common\Auth;
 
+use UBO\Common\Support\ConfigValue;
+
 /**
  * Typed view of config/ubo-auth.php, so the module never reads raw config keys.
  */
@@ -29,6 +31,12 @@ final readonly class AuthSettings
 
     private const TIMEOUT = 5;
 
+    private const CONNECT_TIMEOUT = 2;
+
+    private const CIRCUIT_FAILURES = 5;
+
+    private const CIRCUIT_COOLDOWN = 30;
+
     /**
      * @param  array{token: string, introspect: string, public_key: string}  $endpoints
      */
@@ -48,6 +56,10 @@ final readonly class AuthSettings
         public int $introspectionTtl,
         public int $serviceTokenMargin,
         public int $timeout,
+        public int $connectTimeout = self::CONNECT_TIMEOUT,
+        public int $circuitFailures = self::CIRCUIT_FAILURES,
+        public int $circuitCooldown = self::CIRCUIT_COOLDOWN,
+        public bool $degradedMode = false,
     ) {}
 
     /**
@@ -57,23 +69,30 @@ final readonly class AuthSettings
     {
         $cache = (array) ($config['cache'] ?? []);
         $overrides = (array) ($config['endpoint_overrides'] ?? []);
+        $circuit = (array) ($config['circuit_breaker'] ?? []);
+        $timeout = ConfigValue::positiveInt($config['timeout'] ?? null, self::TIMEOUT);
 
         return new self(
             url: filled($config['url'] ?? null) ? rtrim($config['url'], '/') : null,
             endpoints: self::endpoints($overrides),
             clientId: filled($config['client_id'] ?? null) ? (string) $config['client_id'] : null,
             clientSecret: filled($config['client_secret'] ?? null) ? (string) $config['client_secret'] : null,
-            strategy: self::filledString($config['strategy'] ?? null, self::STRATEGY),
+            strategy: ConfigValue::filledString($config['strategy'] ?? null, self::STRATEGY),
             allowUserTokens: (bool) ($config['allow_user_tokens'] ?? false),
             api: filled($config['api'] ?? null) ? (string) $config['api'] : null,
             publicKey: filled($config['public_key'] ?? null) ? (string) $config['public_key'] : null,
-            leeway: self::nonNegativeInt($config['leeway'] ?? null, self::LEEWAY),
+            leeway: ConfigValue::nonNegativeInt($config['leeway'] ?? null, self::LEEWAY),
             cacheStore: filled($cache['store'] ?? null) ? (string) $cache['store'] : null,
-            cachePrefix: self::filledString($cache['prefix'] ?? null, self::CACHE_PREFIX),
-            publicKeyTtl: self::positiveInt($cache['public_key_ttl'] ?? null, self::PUBLIC_KEY_TTL),
-            introspectionTtl: self::positiveInt($cache['introspection_ttl'] ?? null, self::INTROSPECTION_TTL),
-            serviceTokenMargin: self::positiveInt($cache['service_token_margin'] ?? null, self::SERVICE_TOKEN_MARGIN),
-            timeout: self::positiveInt($config['timeout'] ?? null, self::TIMEOUT),
+            cachePrefix: ConfigValue::filledString($cache['prefix'] ?? null, self::CACHE_PREFIX),
+            publicKeyTtl: ConfigValue::positiveInt($cache['public_key_ttl'] ?? null, self::PUBLIC_KEY_TTL),
+            introspectionTtl: ConfigValue::positiveInt($cache['introspection_ttl'] ?? null, self::INTROSPECTION_TTL),
+            serviceTokenMargin: ConfigValue::positiveInt($cache['service_token_margin'] ?? null, self::SERVICE_TOKEN_MARGIN),
+            timeout: $timeout,
+            // Never longer than the whole call.
+            connectTimeout: min($timeout, ConfigValue::positiveInt($config['connect_timeout'] ?? null, self::CONNECT_TIMEOUT)),
+            circuitFailures: ConfigValue::positiveInt($circuit['failures'] ?? null, self::CIRCUIT_FAILURES),
+            circuitCooldown: ConfigValue::positiveInt($circuit['cooldown'] ?? null, self::CIRCUIT_COOLDOWN),
+            degradedMode: filter_var($config['degraded_mode'] ?? false, FILTER_VALIDATE_BOOLEAN),
         );
     }
 
@@ -89,26 +108,10 @@ final readonly class AuthSettings
         $endpoints = self::ENDPOINTS;
 
         foreach ($endpoints as $name => $path) {
-            $endpoints[$name] = self::filledString($overrides[$name] ?? null, $path);
+            $endpoints[$name] = ConfigValue::filledString($overrides[$name] ?? null, $path);
         }
 
         return $endpoints;
-    }
-
-    /** A whole number above zero, or $default (empty "UBO_X=" in the .env reads as ""). */
-    private static function positiveInt(mixed $value, int $default): int
-    {
-        return is_numeric($value) && (int) $value > 0 ? (int) $value : $default;
-    }
-
-    private static function nonNegativeInt(mixed $value, int $default): int
-    {
-        return is_numeric($value) && (int) $value >= 0 ? (int) $value : $default;
-    }
-
-    private static function filledString(mixed $value, string $default): string
-    {
-        return is_scalar($value) && trim((string) $value) !== '' ? (string) $value : $default;
     }
 
     /** Absolute URL of an API-Auth endpoint ("token", "introspect" or "public_key"). */

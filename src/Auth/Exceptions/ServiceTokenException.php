@@ -30,6 +30,11 @@ final class ServiceTokenException extends RuntimeException
         return new self('API-Auth could not be reached: '.$previous->getMessage(), previous: $previous);
     }
 
+    public static function unavailable(Throwable $previous): self
+    {
+        return new self('API-Auth is not available: '.$previous->getMessage(), previous: $previous);
+    }
+
     public static function rejected(int $status, ?string $error, ?string $description): self
     {
         return new self(

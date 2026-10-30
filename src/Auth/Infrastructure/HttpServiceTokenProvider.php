@@ -7,17 +7,19 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Cache\Repository;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\Response;
+use Psr\Clock\ClockInterface;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Auth\Exceptions\ServiceTokenException;
-use UBO\Common\Tracing\Contracts\TraceContext;
 
 /**
  * Client credentials grant against API-Auth (POST /api/auth/oauth/token). One cached token per
  * API and set of scopes, renewed shortly before it expires. A cache lock keeps
  * concurrent workers from requesting the same token at once.
+ *
+ * The cached token is kept until it really expires: if API-Auth does not answer when it is
+ * time to renew it, the token still in force is used instead of failing.
  */
 final class HttpServiceTokenProvider implements ServiceTokenProvider
 {
@@ -25,9 +27,9 @@ final class HttpServiceTokenProvider implements ServiceTokenProvider
 
     public function __construct(
         private readonly AuthSettings $settings,
-        private readonly HttpFactory $http,
+        private readonly ApiAuthClient $apiAuth,
+        private readonly ClockInterface $clock,
         CacheFactory $cache,
-        private readonly ?TraceContext $trace = null,
     ) {
         $this->cache = $cache->store($settings->cacheStore);
     }
@@ -41,18 +43,30 @@ final class HttpServiceTokenProvider implements ServiceTokenProvider
         $scopes = $this->normalize($scopes);
         $key = $this->key($scopes, $api);
 
-        if (is_string($token = $this->cache->get($key))) {
+        if (($token = $this->cached($key, renewAfter: true)) !== null) {
             return $token;
         }
 
         return $this->locked($key, function () use ($key, $scopes, $api) {
             // Another worker may have fetched it while we waited for the lock.
-            if (is_string($token = $this->cache->get($key))) {
+            if (($token = $this->cached($key, renewAfter: true)) !== null) {
                 return $token;
             }
 
-            [$token, $expiresIn] = $this->request($scopes, $api);
-            $this->cache->put($key, $token, max(1, $expiresIn - $this->settings->serviceTokenMargin));
+            try {
+                [$token, $expiresIn] = $this->request($scopes, $api);
+            } catch (ApiAuthUnreachable $e) {
+                // API-Auth did not answer: the cached token still works until it expires.
+                return $this->cached($key, renewAfter: false) ?? throw $this->unreachable($e);
+            }
+
+            $now = $this->clock->now()->getTimestamp();
+
+            $this->cache->put($key, [
+                'token' => $token,
+                'refresh_at' => $now + max(1, $expiresIn - $this->settings->serviceTokenMargin),
+                'expires_at' => $now + $expiresIn,
+            ], max(1, $expiresIn));
 
             return $token;
         });
@@ -64,43 +78,75 @@ final class HttpServiceTokenProvider implements ServiceTokenProvider
     }
 
     /**
+     * The cached token, while it is not due for renewal ($renewAfter) or, as a fallback,
+     * while it has not expired. A plain string was cached by an older version, with a
+     * TTL that already ends before its renewal time.
+     */
+    private function cached(string $key, bool $renewAfter): ?string
+    {
+        $entry = $this->cache->get($key);
+
+        if (is_string($entry)) {
+            return $entry;
+        }
+
+        if (! is_array($entry) || ! is_string($entry['token'] ?? null)) {
+            return null;
+        }
+
+        $until = $renewAfter ? ($entry['refresh_at'] ?? 0) : ($entry['expires_at'] ?? 0);
+
+        return $this->clock->now()->getTimestamp() < $until ? $entry['token'] : null;
+    }
+
+    /**
      * @param  list<string>  $scopes
      * @return array{0: string, 1: int} token and lifetime in seconds
+     *
+     * @throws ApiAuthUnreachable
      */
     private function request(array $scopes, ?string $api): array
     {
-        try {
-            $response = $this->http
-                ->timeout($this->settings->timeout)
-                ->acceptJson()
-                ->asForm()
-                ->withHeaders($this->trace?->headers() ?? [])
-                ->post($this->settings->endpoint('token'), array_filter([
-                    'grant_type' => 'client_credentials',
-                    'client_id' => $this->settings->clientId,
-                    'client_secret' => $this->settings->clientSecret,
-                    'scope' => implode(' ', $scopes),
-                    'api' => $api,
-                ], fn (?string $value) => $value !== null && $value !== ''));
-        } catch (ConnectionException $e) {
-            throw ServiceTokenException::unreachable($e);
-        }
+        $response = $this->apiAuth->send(fn ($request) => $request
+            ->acceptJson()
+            ->asForm()
+            ->post($this->settings->endpoint('token'), array_filter([
+                'grant_type' => 'client_credentials',
+                'client_id' => $this->settings->clientId,
+                'client_secret' => $this->settings->clientSecret,
+                'scope' => implode(' ', $scopes),
+                'api' => $api,
+            ], fn (?string $value) => $value !== null && $value !== '')));
 
         $token = $response->json('access_token');
 
         if (! $response->successful() || ! is_string($token) || $token === '') {
-            // league/oauth2-server puts the useful part (e.g. which scope) in "hint".
-            $description = $response->json('error_description') ?? $response->json('message');
-            $hint = $response->json('hint');
-
-            if (is_string($hint) && $hint !== '') {
-                $description = $description ? rtrim($description, '.').". {$hint}." : "{$hint}.";
-            }
-
-            throw ServiceTokenException::rejected($response->status(), $response->json('error'), $description);
+            throw $this->rejected($response);
         }
 
         return [$token, (int) ($response->json('expires_in') ?? 3600)];
+    }
+
+    private function unreachable(ApiAuthUnreachable $e): ServiceTokenException
+    {
+        return match (true) {
+            $e->response !== null => $this->rejected($e->response),
+            $e->isCircuitOpen() => ServiceTokenException::unavailable($e),
+            default => ServiceTokenException::unreachable($e->getPrevious() ?? $e),
+        };
+    }
+
+    private function rejected(Response $response): ServiceTokenException
+    {
+        // league/oauth2-server puts the useful part (e.g. which scope) in "hint".
+        $description = $response->json('error_description') ?? $response->json('message');
+        $hint = $response->json('hint');
+
+        if (is_string($hint) && $hint !== '') {
+            $description = $description ? rtrim($description, '.').". {$hint}." : "{$hint}.";
+        }
+
+        return ServiceTokenException::rejected($response->status(), $response->json('error'), $description);
     }
 
     private function locked(string $key, Closure $callback): string

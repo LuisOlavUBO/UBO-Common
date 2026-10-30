@@ -6,6 +6,46 @@ use UBO\Common\ApiClient\Exceptions\UboApiException;
 use UBO\Common\ApiClient\UboApi;
 use UBO\Common\ApiClient\UboPromise;
 
+/*
+| Fails with $failure, and waits for every promise expecting a deadline exceeded.
+*/
+function expectDeadlineExceeded(UboPromise ...$promises): void
+{
+    foreach ($promises as $promise) {
+        try {
+            $promise->wait();
+            test()->fail('Expected UboApiException');
+        } catch (UboApiException $e) {
+            expect($e->isDeadlineExceeded())->toBeTrue();
+        }
+    }
+}
+
+test('an async call stops being retried when its deadline is reached', function () {
+    config(['ubo-apis.defaults.timeout' => 10, 'ubo-apis.defaults.retries' => 2, 'ubo-apis.defaults.deadline' => 15]);
+    $timeouts = [];
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => slowTimeout($timeouts)]);
+
+    expectDeadlineExceeded(UboApi::callAsync('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises'));
+
+    expect($timeouts)->toBe([10.0, 5.0]);
+});
+
+test('parallel calls count their deadline from their own start, not one after the other', function () {
+    config(['ubo-apis.defaults.timeout' => 10, 'ubo-apis.defaults.retries' => 2, 'ubo-apis.defaults.deadline' => 15]);
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => slowTimeout()]);
+    $start = now();
+
+    expectDeadlineExceeded(
+        UboApi::callAsync('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises'),
+        UboApi::callAsync('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/regiones'),
+    );
+
+    // Http::fake() runs each attempt in turn, moving one shared clock: with the deadline
+    // counted per call, the pair still ends well before two full deadlines (30 s).
+    expect($start->diffInSeconds(now()))->toBeLessThan(30);
+});
+
 test('callAsync returns a promise that resolves to the response', function () {
     Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => Http::response(['data' => 'ok'])]);
 

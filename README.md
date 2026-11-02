@@ -14,6 +14,9 @@ dentro de cada aplicación (`vendor/ubo/common`) y corre en su mismo proceso.
 | `SqlServer` | Aplicaciones con SQL Server | `SET DATEFORMAT ymd` en cada conexión `sqlsrv` (**apagado** por defecto) | [docs/modules/sqlserver.md](docs/modules/sqlserver.md) |
 | `Login` | Monolitos Laravel | Login de personas en **IAM** (Authorization Code + PKCE), usuario con roles y scopes, `@can`, renovación del token y logout (**apagado** por defecto) | [docs/modules/login.md](docs/modules/login.md) |
 
+El inicio de sesión único (qué hace IAM, qué hace esta librería y qué hace tu aplicación) está explicado de punta a
+punta en [docs/sso.md](docs/sso.md).
+
 Reglas para agregar módulos nuevos: [docs/framework.md](docs/framework.md).
 
 ## Requisitos

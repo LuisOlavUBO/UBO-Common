@@ -14,8 +14,12 @@ Monolito: valida el token, abre la sesión, redirige a la página que la persona
 El módulo viene **apagado**. Registra rutas, el guard `ubo`, los alias `ubo.login` y `ubo.role`, y una regla de
 `Gate` que convierte los scopes de la persona en habilidades.
 
-El token de acceso de IAM vive 60 minutos. El módulo lo **renueva solo** con el refresh token, sin que la
-persona lo note, así que una sesión activa no se corta ni pierde un formulario a medio llenar (ver la sección 5).
+El token de acceso de IAM vive 60 minutos (`PASSPORT_ACCESS_TOKEN_TTL` en IAM; es el valor por defecto). El
+módulo lo **renueva solo** con el refresh token, sin que la persona lo note, así que una sesión activa no se corta
+ni pierde un formulario a medio llenar (ver la sección 5).
+
+Este documento es la referencia del módulo. Para ver el sistema completo (qué hace IAM, qué hace esta librería y qué
+hace tu aplicación), con diagramas de secuencia y una guía de operación, lee [docs/sso.md](../sso.md).
 
 ## 1. Alta en IAM
 
@@ -52,10 +56,10 @@ APP_URL=https://portal.ubo.cl                   # la dirección pública de este
 | `UBO_LOGIN_PROMPT` | — | `login` pide la clave en cada login, aunque la persona tenga sesión en IAM |
 | `UBO_LOGIN_STATE_TTL` | 600 s | Lo que puede tardar la persona en volver de IAM |
 | `UBO_LOGIN_STORE` | el almacén de caché de la aplicación | Almacén donde viven los tokens (la bóveda, sección 5): compartido entre servidores y con bloqueos |
-| `UBO_LOGIN_REFRESH_MARGIN` | 60 s | Cuánto antes de vencer se renueva el token de acceso |
+| `UBO_LOGIN_REFRESH_MARGIN` | 60 s | Cuánto antes de vencer se renueva el token de acceso (si `UBO_AUTH_LEEWAY` fuera mayor, se usa el `leeway`) |
 | `UBO_LOGIN_REVALIDATE` | 300 s | Cada cuánto se pregunta a IAM si el token sigue activo; `0` lo apaga |
 | `UBO_LOGIN_MAX_AGE` | 43200 s (12 h) | Duración máxima de la sesión desde el login, por mucho que se renueve; `0` la deja sin tope |
-| `UBO_LOGIN_REFRESH_TTL` | 7200 s (2 h) | Inactividad que tolera la bóveda: lo que tolera el refresh token de IAM |
+| `UBO_LOGIN_REFRESH_TTL` | 7200 s (2 h) | Lo que vive una entrada de la bóveda desde su última escritura (login, renovación o revalidación; leer no la alarga): la inactividad que tolera el refresh token de IAM |
 
 Las variables vacías usan el valor por defecto. Si falta alguna al usar las rutas, el error la nombra
 (`UBO_LOGIN_CLIENT_SECRET must be configured...`); el módulo no valida nada al registrarse, así que un build
@@ -113,9 +117,10 @@ El guard `ubo` existe sin tocar `config/auth.php` y no cambia el guard por defec
 `'guards' => ['web' => ['driver' => 'ubo']]`. `UboUser` no guarda el token y no tiene nombre ni correo: hoy el
 token solo trae el id.
 
-**Los roles y scopes son los del último token emitido**: se actualizan con cada renovación (cada ~59 minutos).
-Un rol que IAM quita se nota en la siguiente renovación, y uno que se agrega, también; la persona que pierde
-todos sus roles queda fuera. Los scopes nunca crecen en una renovación, solo se descartan.
+**Los roles y scopes son los del último token emitido**: se actualizan con cada renovación (cada ~59 minutos con
+los tiempos por defecto). `roles` se recalcula: un rol que IAM quita o agrega se nota en la siguiente renovación, y
+la persona que pierde todos sus roles queda fuera. Los **scopes** nunca crecen en una renovación, solo se
+descartan: los scopes de un rol nuevo llegan en el siguiente login (IAM lo hace así, ver [docs/sso.md](../sso.md)).
 
 ## 4. Rutas y errores
 
@@ -132,7 +137,9 @@ Los errores se lanzan como excepciones HTTP, y la aplicación decide cómo mostr
 | `LoginFailed` | 400 | El callback no corresponde a un login iniciado desde ese navegador (`state`), el código fue rechazado o el token no sirve |
 | `LoginFailed` | 403 | IAM devolvió `error` (por ejemplo `access_denied`) |
 | `NoAccess` | 403 | La persona se autenticó pero no tiene ningún rol en esta aplicación |
-| `AuthServerUnavailable` | 503 | IAM no responde o su circuito está abierto |
+| `AuthServerUnavailable` | 503 | IAM no responde o su circuito está abierto (al canjear el código; en una renovación no sale: ver la sección 5) |
+| `LoginNotConfigured` | 500 (`LogicException`) | Falta `UBO_AUTH_URL`, `UBO_LOGIN_CLIENT_ID`, `UBO_LOGIN_CLIENT_SECRET` o `APP_URL` al usar las rutas |
+| `LogicException` | 500 | `SESSION_DRIVER=cookie` |
 
 ## 5. La sesión de tokens
 
@@ -164,7 +171,7 @@ IAM) cuando:
 |---|---|
 | IAM rechaza el refresh token (`invalid_grant`) | Salvo que otra petición ya lo haya renovado: entonces se usa su resultado |
 | El token renovado no trae ningún rol | La persona perdió el acceso; IAM le muestra su página de "sin acceso" |
-| El token renovado es de otra persona o cliente, o no es válido | |
+| El token renovado es de otra persona o cliente, es de sistema, o no se puede validar | Incluye no poder descargar la clave pública de IAM en ese momento: el refresh token ya estaba gastado |
 | El token de acceso venció y no hay refresh token | IAM no entregó uno en el login: la sesión dura lo que el token |
 | Se alcanzó `UBO_LOGIN_MAX_AGE` | |
 | IAM informa en la revalidación que el token ya no está activo | |
@@ -172,8 +179,9 @@ IAM) cuando:
 
 **Si IAM no responde** al renovar (error de conexión, circuito abierto, 5xx) o la rechaza por otro motivo que
 `invalid_grant` (por ejemplo 429), **la sesión no termina**: se sigue con el token vigente mientras no venza,
-y si ya venció el guard devuelve `null` sin borrar la bóveda, así que la persona va a IAM (que, si está caído,
-responde 503 en el callback) y la siguiente petición con IAM disponible renueva. La revalidación también
+y si ya venció el guard devuelve `null` sin borrar la bóveda, así que la persona es enviada al login: si IAM no
+responde al navegador verá el error de su proxy o del navegador, y si el navegador llega pero este servidor no
+(red interna), el callback responde 503. La siguiente petición con IAM disponible renueva. La revalidación también
 tolera que IAM no responda. Dentro de una misma petición IAM recibe una sola llamada, aunque el guard se
 consulte varias veces (middleware, `Gate`, vistas); la siguiente petición vuelve a intentar. IAM limita `/api/auth/oauth/token` a 120 solicitudes por minuto **por cliente**, compartidas
 por todas las personas del monolito: un pico de renovaciones puede recibir 429, que no termina la sesión (hay
@@ -191,7 +199,8 @@ pasar por IAM y queda un `warning` en el log.
 2. Cierra la sesión local y regenera el token CSRF.
 3. Manda a la persona a `IAM /api/auth/logout`, que cierra su sesión de IAM y **revoca sus tokens en todos
    los sistemas**; IAM la devuelve a `UBO_LOGIN_LOGOUT_RETURN`. Ese `return` debe tener el mismo origen que la
-   `redirect_uri` registrada.
+   `redirect_uri` registrada. IAM identifica a la persona por **su sesión de IAM** (la cookie), así que si esa
+   sesión ya venció (120 minutos sin uso en IAM) solo se revoca el token de este monolito, no los de los demás.
 
 Con `scope=local` solo se revoca el token de esta sesión y se vuelve a `UBO_LOGIN_HOME`, sin pasar por IAM: las
 sesiones de la persona en otros sistemas siguen.

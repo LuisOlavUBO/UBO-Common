@@ -31,7 +31,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   `UBO_LOGIN_HOME`, `UBO_LOGIN_LOGOUT_RETURN`, `UBO_LOGIN_PROMPT`, `UBO_LOGIN_STATE_TTL`, `UBO_LOGIN_STORE`,
   `UBO_LOGIN_REFRESH_MARGIN`, `UBO_LOGIN_REVALIDATE`, `UBO_LOGIN_MAX_AGE` y `UBO_LOGIN_REFRESH_TTL`. No necesita
   credenciales M2M. Rechaza `SESSION_DRIVER=cookie`. `UboLogin::actingAs()` simula a una persona en los
-  tests. Requiere un cliente `authorization-code` en IAM. Ver `docs/modules/login.md`.
+  tests. Requiere un cliente `authorization-code` en IAM. Ver `docs/modules/login.md` y, para el sistema
+  completo, `docs/sso.md`.
 - **Auth**: `Contracts\UserTokenClient` canjea el código de autorización (que devuelve también el refresh
   token, `null` si API-Auth no lo entrega), renueva un token con el refresh token (`refresh()`, `grant_type=
   refresh_token`) y revoca el token de una persona (`POST /api/auth/oauth/token` y `/api/auth/v1/logout`),

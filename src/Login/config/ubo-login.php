@@ -9,7 +9,7 @@ return [
     |
     | The person's browser is sent to IAM's login and logout pages, so this is the
     | public address of API-Auth (e.g. https://iam.ubo.cl). Calls from this server
-    | to API-Auth (code exchange, revocation) use ubo-auth.url, the internal one. When
+    | to API-Auth (code exchange, renewal, revocation) use ubo-auth.url, the internal one. When
     | empty, ubo-auth.url is used for both. The routes are fixed by the package:
     | /api/auth/oauth/authorize and /api/auth/logout.
     |

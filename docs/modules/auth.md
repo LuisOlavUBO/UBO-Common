@@ -242,10 +242,14 @@ Lo que no cambia con el modo degradado:
 ## 8. Tokens de una persona (para el módulo Login)
 
 Además del token de la propia aplicación (`ServiceTokenProvider`), Auth ofrece `Contracts\UserTokenClient`,
-que el módulo [Login](login.md) usa para canjear el código de autorización (`POST /api/auth/oauth/token`) y para
-revocar el token de una persona (`POST /api/auth/v1/logout`). Comparte los timeouts, la traza y el circuito de las
-demás llamadas a API-Auth. Si API-Auth rechaza el canje lanza `UserTokenRejected` (con `status` y `error`, sin el
-código, el verificador ni el secreto en el mensaje); si no responde, `AuthServerUnavailable`.
+que el módulo [Login](login.md) usa para canjear el código de autorización (`exchangeCode()`, `POST
+/api/auth/oauth/token`), para renovar un token con el refresh token (`refresh()`, `grant_type=refresh_token` en el
+mismo endpoint) y para revocar el token de una persona (`revoke()`, `POST /api/auth/v1/logout`, que revoca también su
+refresh token; un 401 se toma como éxito). El canje y la renovación devuelven `access_token`, `refresh_token` (`null`
+si API-Auth no lo entrega) y `expires_in`. Comparte los timeouts, la traza y el circuito de las demás llamadas a
+API-Auth. Si API-Auth rechaza el canje o la renovación lanza `UserTokenRejected` (con `status` y `error`, sin el
+código, el verificador, el refresh token ni el secreto en el mensaje; un 429 no abre el circuito); si no responde,
+`AuthServerUnavailable`. Visión completa del SSO: [docs/sso.md](../sso.md).
 
 `Contracts\LocalTokenValidator` es el validador local (firma y vigencia) sin importar `UBO_AUTH_STRATEGY`, para
 tokens que API-Auth acaba de entregar a esta aplicación.

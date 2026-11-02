@@ -86,7 +86,9 @@ La motivación está en el proposal (ver "Why") y los comportamientos exigidos, 
   propia) para que haya un único mensaje y no haya bucle.
 - **IAM caído, circuito abierto o 429 al renovar**: no es el fin de la sesión. Con el token aún vigente se sigue con
   él (como el token de reserva del M2M); con el token vencido el guard devuelve `null` sin borrar la bóveda. El
-  resultado es una redirección a IAM, que si está caído responde 503 en el callback; el refresh token sigue guardado.
+  resultado es una redirección al login de IAM: si IAM no responde al navegador, la persona ve el error de su proxy
+  o del navegador, y si el navegador llega pero este servidor no, el callback responde 503; el refresh token sigue
+  guardado.
 - **Revalidación por la estrategia configurada** (`TokenValidator`), cada `UBO_LOGIN_REVALIDATE` s, solo con
   `introspection`/`hybrid` y credenciales M2M (`AuthSettings::hasClientCredentials()`); con `jwt` solo comprobaría
   firma y vigencia, que ya se sabe. Si IAM no responde se sigue y se reintenta: la revalidación es un control extra, no

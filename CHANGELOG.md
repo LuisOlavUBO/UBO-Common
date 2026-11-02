@@ -9,6 +9,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-02
+
+Versión MINOR: compatible con la 3.1. Las aplicaciones solo tienen que ejecutar `composer update ubo/common`;
+el módulo Login viene apagado. Para usarlo hace falta API-Auth 3.1.0 (login central con Authorization Code
++ PKCE) y un cliente `authorization-code` registrado en IAM.
+
 ### Added
 
 - **Login**: módulo nuevo, **apagado por defecto** (`UBO_COMMON_LOGIN=true` para activarlo), para que un

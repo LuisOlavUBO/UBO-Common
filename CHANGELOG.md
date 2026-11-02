@@ -12,21 +12,32 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 ### Added
 
 - **Login**: módulo nuevo, **apagado por defecto** (`UBO_COMMON_LOGIN=true` para activarlo), para que un
-  monolito Laravel inicie sesión con IAM por Authorization Code + PKCE (parte 1: el token de acceso no se
-  renueva, al vencer la persona vuelve a pasar por IAM). Registra `GET <prefijo>/login`, `GET
+  monolito Laravel inicie sesión con IAM por Authorization Code + PKCE. Registra `GET <prefijo>/login`, `GET
   <prefijo>/callback` y `POST <prefijo>/logout` (`iam` por defecto, `UBO_LOGIN_ROUTE_PREFIX`) con `state`
   de un solo uso, PKCE y sesión regenerada al entrar; el guard `ubo` con `UboUser` (id, roles, scopes y
   audiencias del token); los alias `ubo.login` y `ubo.role:a,b`; y una regla de `Gate` que convierte los
   scopes de la persona en habilidades (`@can`, `can:`) sin negar nunca lo que decidan las políticas de la
-  aplicación. El logout revoca el token, cierra la sesión local y manda a IAM (o solo local con
-  `scope=local`). Se configura con `UBO_LOGIN_PUBLIC_URL` (la dirección de IAM para el navegador, distinta
+  aplicación. El logout revoca el token vigente, cierra la sesión local y manda a IAM (o solo local con
+  `scope=local`). Los tokens (acceso y refresh) viven cifrados en una **bóveda** del almacén de caché
+  (`UBO_LOGIN_STORE`, compartido entre servidores y con bloqueos) y la sesión solo guarda un identificador
+  aleatorio; el token de acceso se **renueva solo** con el refresh token antes de vencer
+  (`UBO_LOGIN_REFRESH_MARGIN`, una sola vez aunque lleguen peticiones en paralelo) y actualiza los roles,
+  scopes y audiencias; la sesión se **revalida** contra IAM cada `UBO_LOGIN_REVALIDATE` s (con
+  `introspection`/`hybrid` y credenciales M2M) para enterarse de un logout hecho en otro sistema, y tiene un
+  **tope** de `UBO_LOGIN_MAX_AGE` s (12 h); termina si IAM rechaza el refresh token, si la persona pierde todos
+  sus roles o si el token vence sin refresh token, y sigue con el token vigente si IAM no responde. La bóveda
+  vive `UBO_LOGIN_REFRESH_TTL` s sin renovarse. Se configura con `UBO_LOGIN_PUBLIC_URL` (la dirección de IAM para el navegador, distinta
   de `UBO_AUTH_URL`), `UBO_LOGIN_CLIENT_ID`, `UBO_LOGIN_CLIENT_SECRET`, `UBO_LOGIN_REDIRECT_URI`,
-  `UBO_LOGIN_HOME`, `UBO_LOGIN_LOGOUT_RETURN`, `UBO_LOGIN_PROMPT` y `UBO_LOGIN_STATE_TTL`. No necesita
+  `UBO_LOGIN_HOME`, `UBO_LOGIN_LOGOUT_RETURN`, `UBO_LOGIN_PROMPT`, `UBO_LOGIN_STATE_TTL`, `UBO_LOGIN_STORE`,
+  `UBO_LOGIN_REFRESH_MARGIN`, `UBO_LOGIN_REVALIDATE`, `UBO_LOGIN_MAX_AGE` y `UBO_LOGIN_REFRESH_TTL`. No necesita
   credenciales M2M. Rechaza `SESSION_DRIVER=cookie`. `UboLogin::actingAs()` simula a una persona en los
-  tests. Requiere un cliente `authorization-code` en IAM. Ver `docs/modules/login.md`.
-- **Auth**: `Contracts\UserTokenClient` canjea el código de autorización y revoca el token de una persona
-  (`POST /api/auth/oauth/token` y `/api/auth/v1/logout`), con los timeouts, la traza y el circuito de las
-  demás llamadas a API-Auth; `UserTokenRejected` si API-Auth rechaza el canje. `Contracts\LocalTokenValidator`
+  tests. Requiere un cliente `authorization-code` en IAM. Ver `docs/modules/login.md` y, para el sistema
+  completo, `docs/sso.md`.
+- **Auth**: `Contracts\UserTokenClient` canjea el código de autorización (que devuelve también el refresh
+  token, `null` si API-Auth no lo entrega), renueva un token con el refresh token (`refresh()`, `grant_type=
+  refresh_token`) y revoca el token de una persona (`POST /api/auth/oauth/token` y `/api/auth/v1/logout`),
+  con los timeouts, la traza y el circuito de las demás llamadas a API-Auth; `UserTokenRejected` si
+  API-Auth rechaza el canje o la renovación (un 429 no abre el circuito). `Contracts\LocalTokenValidator`
   es el validador local (firma y vigencia) sin importar `UBO_AUTH_STRATEGY`. La ruta de la revocación se puede
   reemplazar con `UBO_AUTH_ENDPOINT_LOGOUT`.
 - Dependencias `illuminate/routing` e `illuminate/session` declaradas (ya las trae `laravel/framework`).

@@ -5,9 +5,10 @@ namespace UBO\Common\Auth\Exceptions;
 use RuntimeException;
 
 /**
- * API-Auth refused to give a person's token (400 invalid_grant for a used code or a wrong
- * verifier, 401 invalid_client for a wrong secret...). The message never includes the code,
- * the verifier or the client secret.
+ * API-Auth refused to give a person's token (400 invalid_grant for a used code, a wrong
+ * verifier or a used refresh token, 401 invalid_client for a wrong secret, 429 for too many
+ * requests...). The message never includes the code, the verifier, the refresh token or the
+ * client secret.
  */
 final class UserTokenRejected extends RuntimeException
 {
@@ -19,10 +20,13 @@ final class UserTokenRejected extends RuntimeException
         parent::__construct($message);
     }
 
-    public static function rejected(int $status, ?string $error, ?string $description): self
+    /**
+     * @param  string  $what  what was rejected, for the message: "authorization code" or "refresh token"
+     */
+    public static function rejected(int $status, ?string $error, ?string $description, string $what = 'authorization code'): self
     {
         return new self(
-            "API-Auth rejected the authorization code ({$status} ".($error ?? 'error').')'.($description ? ": {$description}" : '.'),
+            "API-Auth rejected the {$what} ({$status} ".($error ?? 'error').')'.($description ? ": {$description}" : '.'),
             $error,
             $status,
         );

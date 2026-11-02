@@ -3,6 +3,8 @@
 namespace UBO\Common\Login\Testing;
 
 use LogicException;
+use UBO\Common\Login\Infrastructure\LoginSession;
+use UBO\Common\Login\Infrastructure\TokenVault;
 
 /**
  * Logs a person in for a test, without IAM or the login flow, so an application can test its
@@ -36,14 +38,15 @@ final class UboLogin
             request()->setLaravelSession($session);
         }
 
-        $session->put('ubo_login', [
+        (new LoginSession($session, app(TokenVault::class)))->start([
             'id' => $id,
             'client_id' => $clientId,
             'roles' => array_values($roles),
             'scopes' => array_values($scopes),
             'audiences' => [$clientId, ...array_values($audiences)],
             'access_token' => 'test-access-token',
+            'refresh_token' => null,
             'expires_at' => now()->getTimestamp() + $ttl,
-        ]);
+        ], simulated: true);
     }
 }

@@ -70,11 +70,12 @@ test('the login ends when the access token expires', function () {
     UboLogin::actingAs(id: '42', ttl: 3600);
 
     $this->get('/whoami')->assertJson(['check' => true]);
+    $handle = session('ubo_login');
 
     $this->travel(61)->minutes();
 
     $this->get('/whoami')->assertExactJson(['check' => false, 'id' => null, 'roles' => null]);
-    expect(session('ubo_login'))->toBeNull();
+    expect(vaultEntry($handle))->toBeNull();
 });
 
 test('the leeway of the auth module counts before the token expires', function () {

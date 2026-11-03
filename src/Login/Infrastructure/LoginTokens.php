@@ -58,7 +58,17 @@ final class LoginTokens
             return $this->end($handle);
         }
 
+        // An entry from before the uuid with nothing to renew it with cannot get one.
+        if ($login['uuid'] === null && $login['refresh_token'] === null) {
+            return $this->end($handle);
+        }
+
         if ($this->dueForRenewal($login) && ($login = $this->renew($handle, $login)) === null) {
+            return null;
+        }
+
+        // IAM did not renew for now: without a uuid there is no person yet, the next request tries again.
+        if ($login['uuid'] === null) {
             return null;
         }
 
@@ -85,8 +95,9 @@ final class LoginTokens
      */
     private function dueForRenewal(array $login): bool
     {
+        // An entry from before the uuid renews at once, to get it from the renewed token.
         return $login['refresh_token'] !== null
-            && $this->now() >= $login['expires_at'] - max($this->settings->refreshMargin, $this->auth->leeway);
+            && ($login['uuid'] === null || $this->now() >= $login['expires_at'] - max($this->settings->refreshMargin, $this->auth->leeway));
     }
 
     /**
@@ -216,8 +227,18 @@ final class LoginTokens
             return $this->end($handle);
         }
 
-        if ($token->isMachineToken() || $token->userId !== $login['id'] || strcasecmp($token->clientId, $this->settings->clientId()) !== 0) {
+        // The same person: same "sub" and, when the session already has it, same uuid.
+        if ($token->isMachineToken()
+            || $token->userId !== $login['id']
+            || ($login['uuid'] !== null && $token->uuid !== $login['uuid'])
+            || strcasecmp($token->clientId, $this->settings->clientId()) !== 0) {
             $this->log->warning('UBO.Common ended a login because the renewed access token is of another person or client.');
+
+            return $this->end($handle);
+        }
+
+        if ($token->uuid === null) {
+            $this->log->warning('UBO.Common ended a login because the renewed access token has no "uuid" claim: update API-Auth.');
 
             return $this->end($handle);
         }
@@ -228,6 +249,7 @@ final class LoginTokens
         }
 
         $renewed = [
+            'uuid' => $token->uuid,
             'roles' => $token->roles,
             'scopes' => $token->scopes,
             'audiences' => $token->audiences,

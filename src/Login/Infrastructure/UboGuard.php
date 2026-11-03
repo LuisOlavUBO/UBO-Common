@@ -68,17 +68,19 @@ final class UboGuard implements Guard
     }
 
     /**
-     * @param  array{id: string, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, expires_at: int}|null  $login
+     * @param  array{id: string, uuid: string|null, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, expires_at: int}|null  $login
      */
     private function userOf(?array $login): ?UboUser
     {
         // A session that ended (or whose vault entry is gone) leaves only a handle that opens nothing.
-        if ($login === null) {
+        // Without a uuid there is no id to give: never the internal "sub" in its place.
+        if ($login === null || $login['uuid'] === null) {
             return null;
         }
 
         return new UboUser(
-            id: $login['id'],
+            id: $login['uuid'],
+            sub: $login['id'],
             clientId: $login['client_id'],
             roles: $login['roles'],
             scopes: $login['scopes'],

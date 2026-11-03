@@ -10,14 +10,15 @@ use Illuminate\Contracts\Auth\Authenticatable;
  * token: it is safe to dump, log or serialize.
  *
  *     $user = Auth::guard('ubo')->user();
- *     $user->getAuthIdentifier();   // "sub" of the token
+ *     $user->getAuthIdentifier();   // the person's uuid in IAM (Auth::id()): what to store
  *     $user->hasRole('coordinador');
  *     $user->hasScope('geografia:leer');
  */
 final readonly class UboUser implements Authenticatable
 {
     /**
-     * @param  string  $id  "sub" of the token: the person's id in IAM
+     * @param  string  $id  "uuid" of the token: the person's public id in IAM, the one other systems store
+     * @param  string  $sub  "sub" of the token: the internal id of IAM, which must not be stored
      * @param  string  $clientId  login client the token was issued to
      * @param  list<string>  $roles  roles the person has in this application
      * @param  list<string>  $scopes
@@ -30,6 +31,7 @@ final readonly class UboUser implements Authenticatable
         public array $scopes,
         public array $audiences,
         public DateTimeImmutable $expiresAt,
+        public string $sub = '',
     ) {}
 
     /** Has this role, compared as written (role names are case-sensitive). */

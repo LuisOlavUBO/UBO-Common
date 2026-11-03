@@ -64,11 +64,12 @@ final class IntrospectionValidator implements TokenValidator
             expiresAt: (new DateTimeImmutable)->setTimestamp($claims['exp']),
             audiences: $claims['aud'] ?? [],
             roles: $claims['roles'] ?? [],
+            uuid: $claims['uuid'] ?? null,
         );
     }
 
     /**
-     * @return array{active: bool, client_id: string, sub: string|null, scopes: list<string>, aud: list<string>, roles?: list<string>, exp: int}
+     * @return array{active: bool, client_id: string, sub: string|null, scopes: list<string>, aud: list<string>, roles?: list<string>, uuid?: string|null, exp: int}
      */
     private function introspect(string $token): array
     {
@@ -99,10 +100,13 @@ final class IntrospectionValidator implements TokenValidator
             return ['active' => false, 'client_id' => '', 'sub' => null, 'scopes' => [], 'aud' => [], 'exp' => 0];
         }
 
+        $sub = VerifiedToken::userIdFromSubject($data['sub'] ?? null, $data['client_id']);
+
         return [
             'active' => true,
             'client_id' => $data['client_id'],
-            'sub' => VerifiedToken::userIdFromSubject($data['sub'] ?? null, $data['client_id']),
+            'sub' => $sub,
+            'uuid' => VerifiedToken::uuidFrom($data['uuid'] ?? null, $sub),
             'scopes' => array_values(array_filter(explode(' ', (string) ($data['scope'] ?? '')))),
             'aud' => array_values(array_filter((array) ($data['aud'] ?? []), 'is_string')),
             'roles' => array_values(array_filter((array) ($data['roles'] ?? []), 'is_string')),

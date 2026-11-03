@@ -75,6 +75,27 @@ test('a sub different from the client id is a user', function () {
     expect(app(TokenValidator::class)->validate('opaque-token')->userId)->toBe('42');
 });
 
+test('the uuid introspection reports for a user is kept, lowercase', function () {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::response([...activeIntrospection(), 'sub' => '42', 'uuid' => '9F1C2B3A-0000-4000-8000-00000000ABCD']),
+    ]);
+
+    expect(app(TokenValidator::class)->validate('opaque-token')->uuid)->toBe('9f1c2b3a-0000-4000-8000-00000000abcd');
+});
+
+test('a machine token has no uuid, and neither does a user token introspected without one', function () {
+    Http::fake([
+        ...fakeTokenEndpoint(),
+        'https://api-auth.test/api/auth/v1/introspect' => Http::sequence()
+            ->push([...activeIntrospection(), 'uuid' => null])
+            ->push([...activeIntrospection(), 'sub' => '42']),
+    ]);
+
+    expect(app(TokenValidator::class)->validate('machine-token')->uuid)->toBeNull()
+        ->and(app(TokenValidator::class)->validate('old-user-token')->uuid)->toBeNull();
+});
+
 test('an inactive token is rejected', function () {
     Http::fake([
         ...fakeTokenEndpoint(),

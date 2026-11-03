@@ -75,10 +75,11 @@ final class TokenFactory
      * @param  list<string>  $scopes
      * @param  list<string>  $roles  goes in the "roles" claim
      * @param  list<string>|null  $audiences  applications named in "aud" after the client id
+     * @param  string|null  $uuid  the "uuid" claim, the person's public id; by default uuidFor($userId)
      */
-    public function forUser(string $userId, string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null, array $roles = [], ?array $audiences = null): string
+    public function forUser(string $userId, string $clientId, array $scopes = [], int $ttl = 3600, ?string $api = null, array $roles = [], ?array $audiences = null, ?string $uuid = null): string
     {
-        return $this->issue($clientId, $userId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest(), roles: $roles, applications: $audiences);
+        return $this->issue($clientId, $userId, $scopes, Date::now()->toDateTimeImmutable(), $ttl, api: $api ?? $this->apiUnderTest(), roles: $roles, applications: $audiences, uuid: $uuid ?? self::uuidFor($userId));
     }
 
     /**
@@ -127,9 +128,9 @@ final class TokenFactory
      * @param  list<string>  $roles
      * @param  list<string>|null  $applications  named in "aud" after the client id instead of $api
      */
-    private function issue(string $clientId, string $subject, array $scopes, DateTimeImmutable $issuedAt, int $ttl, string $key = 'test', ?string $api = null, array $roles = [], ?array $applications = null): string
+    private function issue(string $clientId, string $subject, array $scopes, DateTimeImmutable $issuedAt, int $ttl, string $key = 'test', ?string $api = null, array $roles = [], ?array $applications = null, ?string $uuid = null): string
     {
-        return (new Builder(new JoseEncoder, ChainedFormatter::default()))
+        $builder = (new Builder(new JoseEncoder, ChainedFormatter::default()))
             ->permittedFor(...array_filter([$clientId, ...($applications ?? [$api])]))
             ->identifiedBy(Str::random(80))
             ->issuedAt($issuedAt)
@@ -137,8 +138,26 @@ final class TokenFactory
             ->expiresAt($issuedAt->modify("+{$ttl} seconds"))
             ->relatedTo($subject)
             ->withClaim('scopes', $scopes)
-            ->withClaim('roles', $roles)
+            ->withClaim('roles', $roles);
+
+        // API-Auth puts the person's public id in user tokens only.
+        if ($uuid !== null) {
+            $builder = $builder->withClaim('uuid', $uuid);
+        }
+
+        return $builder
             ->getToken(new Sha256, InMemory::file(__DIR__."/keys/{$key}-private.key"))
             ->toString();
+    }
+
+    /**
+     * The uuid forUser() gives a user when none is passed: always the same for the same id, so a
+     * test can compare without keeping it, and formatted like the ones API-Auth issues.
+     */
+    public static function uuidFor(string $userId): string
+    {
+        $hex = md5('ubo-test:'.$userId);
+
+        return sprintf('%s-%s-4%s-a%s-%s', substr($hex, 0, 8), substr($hex, 8, 4), substr($hex, 13, 3), substr($hex, 17, 3), substr($hex, 20, 12));
     }
 }

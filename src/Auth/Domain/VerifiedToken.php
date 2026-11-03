@@ -22,6 +22,8 @@ final readonly class VerifiedToken
      * @param  list<string>  $scopes
      * @param  list<string>  $audiences  "aud" claim: the client id and, for tokens issued for one API, its name
      * @param  list<string>  $roles  "roles" claim: names of the roles the token was issued with (empty when it has none)
+     * @param  string|null  $uuid  public id of the person ("uuid" claim), lowercase: what other systems store to
+     *                             refer to them, never $userId. Null for machine tokens and older user tokens
      */
     public function __construct(
         public string $id,
@@ -31,6 +33,7 @@ final readonly class VerifiedToken
         public DateTimeImmutable $expiresAt,
         public array $audiences = [],
         public array $roles = [],
+        public ?string $uuid = null,
     ) {}
 
     /** The token validated by the "ubo.auth" middleware for this request, if any. */
@@ -53,6 +56,15 @@ final readonly class VerifiedToken
         }
 
         return $subject;
+    }
+
+    /**
+     * The public id of the person behind a token, from its "uuid" claim, lowercase (SQL Server
+     * stores it in capitals). Machine tokens have none, whatever they carry.
+     */
+    public static function uuidFrom(mixed $uuid, ?string $userId): ?string
+    {
+        return $userId !== null && is_string($uuid) && $uuid !== '' ? strtolower($uuid) : null;
     }
 
     /** Issued with the client credentials grant (no user behind it). */

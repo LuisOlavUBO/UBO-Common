@@ -67,7 +67,7 @@ final class LoginSession
      * Start the session of a person: their tokens go to the vault under a new handle, which is
      * what the session keeps. The vault entry of a login this session had before stops working.
      *
-     * @param  array{id: string, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, access_token: string, refresh_token: string|null, expires_at: int}  $login
+     * @param  array{id: string, uuid: string, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, access_token: string, refresh_token: string|null, expires_at: int}  $login
      * @param  bool  $simulated  a login made by a test: nothing to renew or to check with IAM
      */
     public function start(array $login, bool $simulated = false): void
@@ -90,7 +90,7 @@ final class LoginSession
     /**
      * What the vault holds now for this session, as it is: not renewed, not checked.
      *
-     * @return array{id: string, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, access_token: string, refresh_token: string|null, expires_at: int, started_at: int, checked_at: int, simulated: bool}|null
+     * @return array{id: string, uuid: string|null, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, access_token: string, refresh_token: string|null, expires_at: int, started_at: int, checked_at: int, simulated: bool}|null
      */
     public function current(): ?array
     {

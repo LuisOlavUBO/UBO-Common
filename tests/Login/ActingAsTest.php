@@ -42,6 +42,18 @@ test('the login of a test lives in the vault and is never renewed or checked wit
     Http::assertNothingSent();
 });
 
+test('the id of a simulated person is their uuid, and the internal id can be given apart', function () {
+    UboLogin::actingAs(id: '9f1c2b3a-0000-4000-8000-00000000abcd', sub: '42');
+
+    expect(Auth::guard('ubo')->id())->toBe('9f1c2b3a-0000-4000-8000-00000000abcd')
+        ->and(Auth::guard('ubo')->user()->sub)->toBe('42');
+
+    UboLogin::actingAs(id: '7');
+
+    expect(Auth::guard('ubo')->id())->toBe('7')
+        ->and(Auth::guard('ubo')->user()->sub)->toBe('7');
+});
+
 test('it cannot be used in production', function () {
     app()->detectEnvironment(fn () => 'production');
 

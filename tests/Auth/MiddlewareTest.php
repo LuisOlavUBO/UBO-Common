@@ -160,6 +160,59 @@ test('without its name the API accepts user tokens issued for any API', function
 });
 
 /*
+| Public id of the person (uuid).
+*/
+
+test('the uuid of the person is available in the request, lowercase', function () {
+    config(['ubo-auth.allow_user_tokens' => true]);
+    Route::middleware('ubo.auth')->get('/protected/uuid', fn (Request $request) => [
+        'user' => VerifiedToken::from($request)->userId,
+        'uuid' => VerifiedToken::from($request)->uuid,
+    ]);
+
+    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer'], uuid: '9F1C2B3A-0000-4000-8000-00000000ABCD'))
+        ->getJson('/protected/uuid')
+        ->assertExactJson(['user' => '42', 'uuid' => '9f1c2b3a-0000-4000-8000-00000000abcd']);
+
+    $this->withToken($this->tokens->forClient('SIS_SQLSRV', ['geografia:leer']))
+        ->getJson('/protected/uuid')
+        ->assertExactJson(['user' => null, 'uuid' => null]);
+
+    // A machine token never has a person, whatever it carries.
+    $this->withToken(tokenWithClaims(['roles' => [], 'uuid' => '9f1c2b3a-0000-4000-8000-00000000abcd']))
+        ->getJson('/protected/uuid')
+        ->assertExactJson(['user' => null, 'uuid' => null]);
+});
+
+test('a user token issued before the uuid claim is accepted without one', function () {
+    config(['ubo-auth.allow_user_tokens' => true]);
+    Route::middleware('ubo.auth')->get('/protected/uuid', fn (Request $request) => ['uuid' => VerifiedToken::from($request)->uuid]);
+
+    $token = (new Builder(new JoseEncoder, ChainedFormatter::default()))
+        ->permittedFor('portal-client')
+        ->identifiedBy('jti-2')
+        ->issuedAt(now()->toDateTimeImmutable())
+        ->canOnlyBeUsedAfter(now()->toDateTimeImmutable())
+        ->expiresAt(now()->addHour()->toDateTimeImmutable())
+        ->relatedTo('42')
+        ->withClaim('scopes', ['geografia:leer'])
+        ->getToken(new Sha256, InMemory::file(dirname(TestKey::PUBLIC_KEY_PATH).'/test-private.key'))
+        ->toString();
+
+    $this->withToken($token)->getJson('/protected/uuid')->assertOk()->assertExactJson(['uuid' => null]);
+});
+
+test('TokenFactory gives each user a stable uuid unless one is passed', function () {
+    $uuidOf = fn (string $token) => (new Parser(new JoseEncoder))->parse($token)->claims()->get('uuid');
+
+    expect($uuidOf($this->tokens->forUser('12345', 'SIS')))->toBe(TokenFactory::uuidFor('12345'))
+        ->and(TokenFactory::uuidFor('12345'))->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-a[0-9a-f]{3}-[0-9a-f]{12}$/')
+        ->and(TokenFactory::uuidFor('12345'))->not->toBe(TokenFactory::uuidFor('12346'))
+        ->and($uuidOf($this->tokens->forUser('12345', 'SIS', uuid: '0b2e0000-0000-4000-8000-000000000001')))->toBe('0b2e0000-0000-4000-8000-000000000001')
+        ->and($uuidOf($this->tokens->forClient('SIS')))->toBeNull();
+});
+
+/*
 | Roles of the token.
 */
 

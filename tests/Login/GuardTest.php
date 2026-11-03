@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use UBO\Common\Auth\Testing\TokenFactory;
 use UBO\Common\Login\Domain\UboUser;
 use UBO\Common\Login\Infrastructure\UboGuard;
 use UBO\Common\Login\Testing\UboLogin;
@@ -27,12 +28,13 @@ test('the user is the person of the token', function () {
     iamIssues($tokens->forUser('42', 'login-client', ['geografia:leer', 'geografia:escribir'], roles: ['coordinador'], audiences: ['api-maestros', 'portal']));
     $this->withBrowserSession()->get('/iam/callback?code=the-code&state='.$state)->assertRedirect('/');
 
-    $this->withBrowserSession()->get('/whoami')->assertExactJson(['check' => true, 'id' => '42', 'roles' => ['coordinador']]);
+    $this->withBrowserSession()->get('/whoami')->assertExactJson(['check' => true, 'id' => TokenFactory::uuidFor('42'), 'roles' => ['coordinador']]);
 
     $user = Auth::guard('ubo')->user();
 
     expect($user)->toBeInstanceOf(UboUser::class)
-        ->and($user->getAuthIdentifier())->toBe('42')
+        ->and($user->getAuthIdentifier())->toBe(TokenFactory::uuidFor('42'))
+        ->and($user->sub)->toBe('42')
         ->and($user->clientId)->toBe('login-client')
         ->and($user->roles)->toBe(['coordinador'])
         ->and($user->scopes)->toBe(['geografia:leer', 'geografia:escribir'])

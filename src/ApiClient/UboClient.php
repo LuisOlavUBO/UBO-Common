@@ -26,8 +26,9 @@ final class UboClient extends PendingUboRequest
     protected function run(Closure $send): Response
     {
         $budget = $this->budget();
+        $person = $this->person();
         $this->guardCircuit();
-        $request = $this->prepare($budget);
+        $request = $this->prepare($budget, $person);
 
         try {
             $response = $send($request);

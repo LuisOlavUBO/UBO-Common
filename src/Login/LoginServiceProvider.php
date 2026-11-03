@@ -11,11 +11,13 @@ use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\LocalTokenValidator;
 use UBO\Common\Auth\Contracts\TokenValidator;
 use UBO\Common\Auth\Contracts\UserTokenClient;
+use UBO\Common\Login\Contracts\UserTokenProvider;
 use UBO\Common\Login\Domain\UboUser;
 use UBO\Common\Login\Http\Controllers\LoginController;
 use UBO\Common\Login\Http\Middleware\EnsureLoggedIn;
 use UBO\Common\Login\Http\Middleware\RequireRole;
 use UBO\Common\Login\Infrastructure\LoginTokens;
+use UBO\Common\Login\Infrastructure\SessionUserTokenProvider;
 use UBO\Common\Login\Infrastructure\TokenVault;
 use UBO\Common\Login\Infrastructure\UboGuard;
 use UBO\Common\Support\ModuleServiceProvider;
@@ -54,6 +56,13 @@ final class LoginServiceProvider extends ModuleServiceProvider
             $app->make(LocalTokenValidator::class),
             fn () => $app->make(TokenValidator::class),
             $app->make('log'),
+        ));
+
+        $this->app->bind(UserTokenProvider::class, fn (Application $app) => new SessionUserTokenProvider(
+            fn () => $app['request'],
+            $app['auth'],
+            $app->make(TokenVault::class),
+            fn () => $app->make(LoginTokens::class),
         ));
 
         // Resolved on every use (not a singleton) so config changes, e.g. in tests, apply at once.

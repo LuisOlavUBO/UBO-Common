@@ -2,6 +2,7 @@
 
 namespace UBO\Common\ApiClient;
 
+use Closure;
 use GuzzleHttp\Utils;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Repository as CacheRepository;
@@ -13,6 +14,7 @@ use Illuminate\Http\Client\Response;
 use LogicException;
 use UBO\Common\Auth\AuthSettings;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
+use UBO\Common\Login\Contracts\UserTokenProvider;
 use UBO\Common\Support\CircuitBreaker;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
@@ -45,7 +47,7 @@ final class ApiClientManager
     {
         $definition = $this->definition($api, $url);
 
-        return new UboClient($definition, $this->http, $this->tokens(), $this->trace(), $this->circuit($definition));
+        return new UboClient($definition, $this->http, $this->tokens(), $this->trace(), $this->circuit($definition), $this->userTokens());
     }
 
     public function callAsync(string $api, ?string $url): UboAsyncClient
@@ -54,7 +56,7 @@ final class ApiClientManager
 
         $definition = $this->definition($api, $url);
 
-        return new UboAsyncClient($definition, $this->http, $this->tokens(), $this->asyncHandler, $this->trace(), $this->circuit($definition));
+        return new UboAsyncClient($definition, $this->http, $this->tokens(), $this->asyncHandler, $this->trace(), $this->circuit($definition), $this->userTokens());
     }
 
     /**
@@ -148,6 +150,19 @@ final class ApiClientManager
         }
 
         return $this->container->make(ServiceTokenProvider::class);
+    }
+
+    /**
+     * The token of the person logged in, for asUser(); resolved only when a call uses it, so
+     * calls with this application's own token work without the login module.
+     *
+     * @return Closure(): UserTokenProvider
+     */
+    private function userTokens(): Closure
+    {
+        return fn () => $this->container->bound(UserTokenProvider::class)
+            ? $this->container->make(UserTokenProvider::class)
+            : throw new LogicException('->asUser() needs the login module enabled (ubo-common.modules.login).');
     }
 
     /**

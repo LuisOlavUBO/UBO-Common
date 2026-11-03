@@ -3,14 +3,17 @@
 namespace UBO\Common\ApiClient;
 
 use Closure;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use LogicException;
 use Throwable;
 use UBO\Common\ApiClient\Exceptions\UboApiException;
 use UBO\Common\Auth\Contracts\ServiceTokenProvider;
 use UBO\Common\Auth\Exceptions\ServiceTokenException;
+use UBO\Common\Login\Contracts\UserTokenProvider;
 use UBO\Common\Support\CircuitBreaker;
 use UBO\Common\Tracing\Contracts\TraceContext;
 
@@ -19,6 +22,7 @@ use UBO\Common\Tracing\Contracts\TraceContext;
  * API-Auth token and the current trace (when the tracing module is enabled). Any configuration method of Laravel's HTTP client can be chained
  * (withHeaders, withQueryParameters, asForm, attach, timeout...), and deadline() sets the time
  * the whole call may take. While the API's circuit is open, calls fail without being sent.
+ * asUser() sends the token of the person logged in instead of this application's own.
  *
  * @mixin PendingRequest
  */
@@ -33,12 +37,16 @@ abstract class PendingUboRequest
     /** Set by deadline(): then it always wins, even over a longer timeout. */
     private bool $deadlineSetOnCall = false;
 
+    /** Set by asUser(): the call carries the token of the person logged in. */
+    private bool $asUser = false;
+
     public function __construct(
         protected readonly ApiDefinition $api,
         HttpFactory $http,
         private readonly ServiceTokenProvider $tokens,
         ?TraceContext $trace = null,
         private readonly ?CircuitBreaker $circuit = null,
+        private readonly ?Closure $userTokens = null,
     ) {
         $this->deadline = $api->deadline;
 
@@ -68,6 +76,18 @@ abstract class PendingUboRequest
     }
 
     /**
+     * Call on behalf of the person logged in in this request (login module): the call carries
+     * their access token instead of this application's own, and the API sees them, with the
+     * roles and scopes IAM gave them.
+     */
+    public function asUser(): static
+    {
+        $this->asUser = true;
+
+        return $this;
+    }
+
+    /**
      * @param  array<int, mixed>  $parameters
      */
     public function __call(string $method, array $parameters): mixed
@@ -84,6 +104,17 @@ abstract class PendingUboRequest
     protected function budget(): CallBudget
     {
         return new CallBudget($this->deadlineSetOnCall ? $this->deadline : max($this->deadline, $this->attemptTimeout()));
+    }
+
+    /**
+     * The token of the person, with asUser(); null for a call with this application's own token.
+     * Asked before anything else: without a person there is nothing to send.
+     *
+     * @throws AuthenticationException when no person is logged in
+     */
+    protected function person(): ?string
+    {
+        return $this->asUser ? $this->userTokens()->token() : null;
     }
 
     /**
@@ -113,12 +144,12 @@ abstract class PendingUboRequest
      * - every retry waits $api->retryWait() and must fit in the budget, with at least one
      *   second left for its attempt, whose timeout is cut to what is left.
      */
-    protected function prepare(CallBudget $budget): PendingRequest
+    protected function prepare(CallBudget $budget, ?string $personToken = null): PendingRequest
     {
         $request = clone $this->request;
 
         try {
-            $request->withToken($this->tokens->token(api: $this->api->name));
+            $request->withToken($personToken ?? $this->tokens->token(api: $this->api->name));
         } catch (ServiceTokenException $e) {
             throw UboApiException::authentication($this->api->name, $e);
         }
@@ -148,13 +179,24 @@ abstract class PendingUboRequest
             return true;
         };
 
-        $when = function (Throwable $e, PendingRequest $request, ?string $method) use (&$tokenRenewed, &$retriesLeft, &$wait, $fits): bool {
+        $when = function (Throwable $e, PendingRequest $request, ?string $method) use (&$tokenRenewed, &$retriesLeft, &$wait, &$personToken, $fits): bool {
             if ($this->isUnauthorized($e) && ! $tokenRenewed) {
                 $tokenRenewed = true;
                 $wait = 0;
 
                 if (! $fits($request, 0)) {
                     return false;
+                }
+
+                if ($personToken !== null) {
+                    // Another request may have renewed it (revoking this one), or it is renewed now.
+                    if (($personToken = $this->userTokens()->renewedAfter($personToken)) === null) {
+                        return false;
+                    }
+
+                    $request->withToken($personToken);
+
+                    return true;
                 }
 
                 $this->tokens->forget(api: $this->api->name);
@@ -242,6 +284,11 @@ abstract class PendingUboRequest
     public function delete(string $path, array $data = []): mixed
     {
         return $this->run(fn (PendingRequest $r) => $r->delete($path, $data));
+    }
+
+    private function userTokens(): UserTokenProvider
+    {
+        return ($this->userTokens ?? throw new LogicException('->asUser() needs the login module enabled (ubo-common.modules.login).'))();
     }
 
     private function attemptTimeout(): int|float

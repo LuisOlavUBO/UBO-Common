@@ -9,6 +9,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+### Added
+
+- **ApiClient**: `->asUser()` en `UboApi::call()` y `callAsync()` llama a una API UBO **como la persona** que tiene
+  sesión en el monolito (módulo Login): envía su token de la bóveda en vez del token M2M, y la API ve a esa persona
+  con sus roles y scopes. Ante un 401 usa el token que otra petición haya renovado o fuerza una renovación con el
+  refresh token, una vez. Sin persona con sesión (ruta sin `ubo.login`, sesión terminada, cola o comando) lanza
+  `AuthenticationException` antes de enviar nada; con el módulo `login` apagado, `LogicException`. El circuito, el
+  tiempo total y los reintentos aplican igual. Necesita `UBO_AUTH_ALLOW_USER_TOKENS=true` en la API destino, y en
+  IAM, los scopes de esa API en los roles de la aplicación del monolito.
+- **Login**: contrato `Login\Contracts\UserTokenProvider` (`token()` y `renewedAfter()`), con el token vigente de
+  la persona de la petición.
+
+### Changed
+
+- **Auth**: con `UBO_AUTH_API` definida, el middleware `ubo.auth` también exige que un **token de usuario** nombre a
+  esa API en su `aud`, como ya hacía con los tokens de sistema (hallazgo 7). Un token de persona emitido para otro
+  sistema ya no sirve en cualquier API que acepte tokens de usuario. Afecta solo a las APIs con
+  `UBO_AUTH_ALLOW_USER_TOKENS=true`. Si alguna responde ahora 401 `wrong_audience`, agrega en IAM un scope de esa API
+  a los roles de la aplicación de la que vienen las personas: IAM pondrá su nombre en el `aud`.
+
 ## [3.2.0] - 2026-11-02
 
 Versión MINOR: compatible con la 3.1. Las aplicaciones solo tienen que ejecutar `composer update ubo/common`;

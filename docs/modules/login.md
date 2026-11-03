@@ -190,6 +190,21 @@ por todas las personas del monolito: un pico de renovaciones puede recibir 429, 
 Si la caché falla justo al guardar un token renovado, el refresh token ya estaba gastado: la persona vuelve a
 pasar por IAM y queda un `warning` en el log.
 
+### Llamar a otras APIs como la persona
+
+`UboApi::call(...)->asUser()` (módulo [ApiClient](api-client.md#en-nombre-de-la-persona-asuser)) usa el token de
+la bóveda para llamar a otra API UBO en nombre de la persona. Lo entrega el contrato
+`UBO\Common\Login\Contracts\UserTokenProvider`:
+
+- `token()`: el token de acceso de la persona de la petición. La persona se resuelve con el guard `ubo` (que
+  renueva si corresponde y no repite en la petición una consulta a IAM sin respuesta). Sin persona lanza
+  `AuthenticationException`, dirigida a la ruta del login.
+- `renewedAfter($rechazado)`: cuando una API rechazó el token, devuelve el vigente si otra petición ya lo
+  renovó, o lo renueva con el refresh token aunque falte para el margen (una sola vez, con el mismo bloqueo).
+  Devuelve `null` si no hay refresh token, si IAM no lo renueva o si la sesión terminó.
+
+Las colas y los comandos no tienen sesión: allí no hay persona y `->asUser()` no sirve.
+
 ## 6. Logout
 
 `POST /iam/logout` (usa un formulario con `@csrf`):
@@ -217,7 +232,8 @@ $this->get('/informes')->assertOk();
 
 No llama a IAM: deja la sesión en la bóveda (sin refresh token) y el guard no la renueva ni la revalida, así que
 los tests con `travel()` solo ven terminar la sesión al vencer el token (`ttl`, 3600 s por defecto) o llegar a
-`UBO_LOGIN_MAX_AGE`. Falla con `LogicException` en producción. Para probar el flujo completo con IAM falso,
+`UBO_LOGIN_MAX_AGE`. Falla con `LogicException` en producción. Con `UboApi::fake()`, una llamada con
+`->asUser()` sale con el token `test-access-token` de la persona simulada. Para probar el flujo completo con IAM falso,
 `Http::fake()` del endpoint `/api/auth/oauth/token` y un token de `TokenFactory::fake()->forUser(...)`:
 mira `tests/Login/CallbackTest.php` en esta librería.
 

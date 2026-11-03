@@ -41,8 +41,9 @@ final class Authenticate
             throw InvalidToken::userTokenNotAllowed();
         }
 
-        // A machine token issued for another API is not valid here, whatever its scopes.
-        if ($this->settings->api !== null && $token->isMachineToken() && ! $token->isFor($this->settings->api)) {
+        // A token issued for another API is not valid here, whatever its scopes: a machine token,
+        // and also a person's, which may travel between APIs (UboApi ->asUser()).
+        if ($this->settings->api !== null && ! $token->isFor($this->settings->api)) {
             throw InvalidToken::wrongAudience();
         }
 

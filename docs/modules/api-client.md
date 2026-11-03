@@ -123,6 +123,49 @@ Varias llamadas **en paralelo**: el tiempo total es el de la más lenta, no la s
 > **varias llamadas al mismo tiempo**. Para trabajo "en segundo plano" (no esperar la respuesta)
 > se usan las colas de Laravel, no `callAsync`.
 
+### En nombre de la persona: `asUser`
+
+En un monolito con el módulo [Login](login.md), `->asUser()` hace la llamada **como la persona que inició
+sesión**: lleva su token de acceso en vez del token del sistema, y la API destino ve a esa persona, con los roles
+y scopes que IAM le dio.
+
+```php
+Route::middleware('ubo.login')->get('/comunas', function () {
+    $comunas = UboApi::call('api-maestros', config('services.maestros.url'))
+        ->asUser()
+        ->get('/api/maestros/v1/geografia/regiones/13/comunas')
+        ->json('data');
+
+    return view('comunas', compact('comunas'));
+});
+
+UboApi::callAsync('api-maestros', $url)->asUser()->get(...);   // también en paralelo
+```
+
+- El token sale de la bóveda del login, renovado si está por vencer. No se pide ningún token a API-Auth.
+- **401**: si otra petición ya renovó el token (y el anterior quedó revocado), reintenta con el nuevo; si no,
+  lo renueva con el refresh token y reintenta una vez. Un segundo 401, o no tener con qué renovar, lanza
+  `UboApiException`.
+- **Sin persona con sesión** (ruta sin `ubo.login`, sesión terminada, cola o comando): lanza
+  `AuthenticationException` antes de enviar nada. En una petición web, Laravel redirige al login de IAM; en
+  JSON, responde 401.
+- Con el módulo `login` apagado, lanza `LogicException`.
+- El circuito de la API, el tiempo total, los reintentos y la traza funcionan igual.
+
+**Qué necesita fuera del monolito:**
+
+1. **La API destino** acepta tokens de personas: `UBO_AUTH_ALLOW_USER_TOKENS=true` (y `UBO_AUTH_API` con su
+   nombre en IAM).
+2. **En IAM**, los roles de la persona **en la aplicación del monolito** traen los scopes de la API destino. El
+   token de una persona solo trae lo del sistema donde inició sesión: si el rol `matricula/coordinador` no tiene
+   `geografia:leer`, api-maestros responde 403 aunque la persona tenga ese permiso por otro rol en maestros. Ese
+   scope también pone el nombre de la API en el `aud` del token, que la API exige (ver
+   [Auth](auth.md#tokens-emitidos-para-otra-api)).
+
+**Cuándo usarlo:** cuando la API debe saber **quién** pide y aplicar **sus** permisos (datos según el perfil,
+auditoría de quién hizo un cambio). Para datos generales, procesos internos, colas y comandos, se llama sin
+`asUser()`, con el token del sistema.
+
 ## 4. Qué hace la librería en cada llamada
 
 1. Si el **circuito** de esa API está abierto, lanza `UboApiException` de inmediato, sin pedir token
@@ -194,6 +237,8 @@ try {
 |---|---|
 | `UboApiException` | La API respondió 4xx/5xx, no respondió, o API-Auth no entregó el token |
 | `InvalidArgumentException` | Se llamó sin nombre de API o sin URL (por ejemplo, falta la variable en el `.env`) |
+| `AuthenticationException` | `->asUser()` sin una persona con sesión (ruta sin `ubo.login`, sesión terminada, cola o comando) |
+| `LogicException` | `->asUser()` con el módulo `login` apagado |
 
 ## 6. Tests en el sistema consumidor
 
@@ -211,3 +256,17 @@ UboApi::fake([
 - `UboApi::fake()` simula también a API-Auth y funciona aunque no haya ninguna variable configurada.
 - Después de `UboApi::fake()` todos los circuitos parten cerrados.
 - Las aserciones de Laravel siguen disponibles: `Http::assertSent(...)`, `Http::assertSentCount(...)`.
+- Para `->asUser()`, la persona se simula con `UboLogin::actingAs()` (módulo Login), cuyo token es
+  `test-access-token`:
+
+  ```php
+  UboLogin::actingAs(id: '42', scopes: ['geografia:leer']);
+  UboApi::fake(['api-maestros/*' => ['data' => []]]);
+
+  $this->get('/comunas')->assertOk();
+
+  Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer test-access-token'));
+  ```
+
+  `$this->actingAs($user, 'ubo')` de Laravel no sirve aquí: esa persona no tiene token en la bóveda, así que
+  `->asUser()` lanza `AuthenticationException`.

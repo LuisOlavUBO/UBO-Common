@@ -111,13 +111,20 @@ propio formato de error. El módulo [Problems](problems.md) las presenta en RFC 
 ### Tokens emitidos para otra API
 
 API-Auth pone el nombre de la API en el `aud` de los tokens que emite para ella: `["<client id>", "api-maestros"]`.
-Con `UBO_AUTH_API=api-maestros`, el middleware rechaza los tokens de sistema que no nombran a esta API,
-aunque traigan un scope con el mismo nombre. Así, un token filtrado no sirve en otra API, sin depender de
-que los nombres de scope sean únicos. Sin `UBO_AUTH_API` no se revisa el `aud` (comportamiento de la 2.0).
-Los tokens de usuario no se revisan contra el nombre de la API.
+Con `UBO_AUTH_API=api-maestros`, el middleware rechaza los tokens que no nombran a esta API, aunque traigan un
+scope con el mismo nombre. Así, un token filtrado no sirve en otra API, sin depender de que los nombres de scope
+sean únicos. Sin `UBO_AUTH_API` no se revisa el `aud` (comportamiento de la 2.0).
 
-En los tests, `TokenFactory::forClient()` emite los tokens para la API configurada en `ubo-auth.api`.
-Para simular un token de otra API: `forClient('SIS', ['geografia:leer'], api: 'api-matricula')`; sin API: `api: ''`.
+Desde la 3.3 la revisión vale también para los **tokens de usuario** (con `UBO_AUTH_ALLOW_USER_TOKENS=true`),
+que pueden viajar entre APIs con `UboApi::call(...)->asUser()`. El token de una persona trae en su `aud` el
+client id del sistema donde inició sesión y las aplicaciones **dueñas de los scopes** de sus roles ahí. Para que
+una API acepte el token de las personas de un sistema, el rol de esas personas **en ese sistema** debe incluir
+algún scope de la API (en IAM: `oauth:scope <scope> --role=<aplicación>/<rol>`). Si no, la API responde 401
+`wrong_audience`.
+
+En los tests, `TokenFactory::forClient()` y `forUser()` emiten los tokens para la API configurada en
+`ubo-auth.api`. Para simular un token de otra API: `forClient('SIS', ['geografia:leer'], api: 'api-matricula')`;
+sin API: `api: ''`.
 
 **Importante:** si la API no fuerza respuestas JSON, Laravel intenta redirigir los 401 a la ruta
 `login`. En las APIs, haz que las rutas `api/*` respondan JSON (como ya hacen API-Auth y Maestros2).

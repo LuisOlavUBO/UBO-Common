@@ -30,9 +30,9 @@ final class UboAsyncClient extends PendingUboRequest
     /** @var callable Guzzle handler shared by every async request, like Laravel's Http::pool(). */
     private $handler;
 
-    public function __construct(ApiDefinition $api, HttpFactory $http, ServiceTokenProvider $tokens, callable $handler, ?TraceContext $trace = null, ?CircuitBreaker $circuit = null)
+    public function __construct(ApiDefinition $api, HttpFactory $http, ServiceTokenProvider $tokens, callable $handler, ?TraceContext $trace = null, ?CircuitBreaker $circuit = null, ?Closure $userTokens = null)
     {
-        parent::__construct($api, $http, $tokens, $trace, $circuit);
+        parent::__construct($api, $http, $tokens, $trace, $circuit, $userTokens);
 
         $this->handler = $handler;
     }
@@ -40,6 +40,8 @@ final class UboAsyncClient extends PendingUboRequest
     protected function run(Closure $send): UboPromise
     {
         $budget = $this->budget();
+        // Taken now, when the promise is created; without a person nothing is sent.
+        $person = $this->person();
 
         try {
             $this->guardCircuit();
@@ -49,6 +51,6 @@ final class UboAsyncClient extends PendingUboRequest
         }
 
         // A shared handler (one curl multi handle) lets waiting on one promise advance all of them.
-        return new UboPromise($send($this->prepare($budget)->setHandler($this->handler)->async()), $this->api->name, $budget);
+        return new UboPromise($send($this->prepare($budget, $person)->setHandler($this->handler)->async()), $this->api->name, $budget);
     }
 }

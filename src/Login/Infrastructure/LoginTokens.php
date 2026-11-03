@@ -108,16 +108,57 @@ final class LoginTokens
                 return $fresh;
             }
 
-            try {
-                $issued = $this->client->refresh($this->settings->clientId(), $this->settings->clientSecret(), (string) $fresh['refresh_token']);
-            } catch (UserTokenRejected $e) {
-                return $e->error === 'invalid_grant' ? $this->rotated($handle, $fresh) : $this->keep($fresh, $e);
-            } catch (AuthServerUnavailable $e) {
-                return $this->keep($fresh, $e);
+            return $this->refreshWith($handle, $fresh);
+        });
+    }
+
+    /**
+     * An API rejected $rejected, the access token of this login: the token in force now,
+     * renewed without waiting for the margin when it is still $rejected. Once, however many
+     * requests arrive, like the renewal in current().
+     *
+     * @return Entry|null null when the session ended or there is nothing to renew with; an
+     *                    entry with $rejected still in it when IAM did not renew for now
+     */
+    public function renewedAfter(string $handle, string $rejected): ?array
+    {
+        $this->unsettled = false;
+
+        return $this->vault->locked($handle, function () use ($handle, $rejected) {
+            if (($fresh = $this->vault->get($handle)) === null) {
+                return null;
             }
 
-            return $this->store($handle, $fresh, $issued);
+            if ($this->settings->maxAge > 0 && $this->now() - $fresh['started_at'] >= $this->settings->maxAge) {
+                return $this->end($handle);
+            }
+
+            // Another request renewed it, which is likely why the API rejected the old one.
+            if ($fresh['access_token'] !== $rejected) {
+                return $fresh;
+            }
+
+            return $fresh['refresh_token'] === null ? null : $this->refreshWith($handle, $fresh);
         });
+    }
+
+    /**
+     * Renew with the refresh token of the entry. Called holding the lock of the entry.
+     *
+     * @param  Entry  $fresh
+     * @return Entry|null null when the session ended
+     */
+    private function refreshWith(string $handle, array $fresh): ?array
+    {
+        try {
+            $issued = $this->client->refresh($this->settings->clientId(), $this->settings->clientSecret(), (string) $fresh['refresh_token']);
+        } catch (UserTokenRejected $e) {
+            return $e->error === 'invalid_grant' ? $this->rotated($handle, $fresh) : $this->keep($fresh, $e);
+        } catch (AuthServerUnavailable $e) {
+            return $this->keep($fresh, $e);
+        }
+
+        return $this->store($handle, $fresh, $issued);
     }
 
     /**

@@ -136,10 +136,26 @@ test('without its name the API accepts machine tokens issued for any API', funct
         ->getJson('/protected')->assertOk();
 });
 
-test('user tokens are not checked against the API name', function () {
+test('an API that knows its name rejects user tokens issued for another API', function () {
     config(['ubo-auth.api' => 'api-maestros', 'ubo-auth.allow_user_tokens' => true]);
 
-    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer']))
+    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer'], api: 'api-matricula'))
+        ->getJson('/protected')->assertUnauthorized();
+    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer'], api: ''))
+        ->getJson('/protected')->assertUnauthorized();
+});
+
+test('an API that knows its name accepts user tokens that name it', function () {
+    config(['ubo-auth.api' => 'api-maestros', 'ubo-auth.allow_user_tokens' => true]);
+
+    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer'], api: 'api-maestros'))
+        ->getJson('/protected')->assertOk();
+});
+
+test('without its name the API accepts user tokens issued for any API', function () {
+    config(['ubo-auth.allow_user_tokens' => true]);
+
+    $this->withToken($this->tokens->forUser('42', 'portal-client', ['geografia:leer'], api: 'api-matricula'))
         ->getJson('/protected')->assertOk();
 });
 

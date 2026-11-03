@@ -161,6 +161,12 @@ php artisan oauth:assign-role ana@ubo.cl portal/coordinador
   manda a `GET /api/auth/logout` de IAM. Con `scope=local` no pasa por IAM.
 - **`UboLogin::actingAs()`**: deja a una persona en la bóveda, sin refresh token y marcada como simulada: no se
   renueva ni se revalida.
+- **Llamar a otras APIs como la persona**: `UboApi::call(...)->asUser()` envía el token de la bóveda (contrato
+  `Login\Contracts\UserTokenProvider`) en vez del token M2M del monolito. Ante un 401 usa el token que otra
+  petición haya renovado o fuerza una renovación, una vez. Sin persona (cola, comando, sesión terminada) lanza
+  `AuthenticationException`. La API destino necesita `UBO_AUTH_ALLOW_USER_TOKENS=true`, y en IAM los roles de la
+  aplicación del monolito deben incluir sus scopes (sección 3.3): así IAM pone el nombre de la API en el `aud`, que
+  la API exige con `UBO_AUTH_API`.
 
 ### 4.2 Módulo Auth (lo que usa el login)
 
@@ -374,4 +380,8 @@ Mensajes del log (`warning`) que dejan los casos que no se ven en pantalla:
   quien lo abra. Es una decisión de API-Auth, no del módulo.
 - **El tope de 12 h es del monolito**: IAM no limita la duración total de una cadena de renovaciones.
 - **Roles, sí; scopes, no**: un rol nuevo se nota al renovar, pero sus scopes llegan en el siguiente login.
+- **El token de una persona solo trae lo del sistema donde inició sesión**: para que `->asUser()` sirva en otra API,
+  sus scopes tienen que estar en los roles de ese sistema, aunque la persona ya tenga esos permisos por un rol en la
+  otra aplicación.
+- **`->asUser()` no funciona en colas ni comandos**: no hay sesión ni bóveda de una persona.
 - Los clientes públicos, las SPA y CORS no están soportados.

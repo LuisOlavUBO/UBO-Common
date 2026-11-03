@@ -329,3 +329,13 @@ test('a call that recovers within its deadline returns the response', function (
 
     expect(UboApi::call('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises')->json('data'))->toBe(['ok']);
 });
+
+test('asUser() needs the login module, and calls without it keep working', function () {
+    Http::fake([...fakeTokenEndpoint(), 'https://maestros.test/*' => Http::response(['data' => 'ok'])]);
+
+    expect(fn () => UboApi::call('api-maestros', 'https://maestros.test')->asUser()->get('/api/maestros/v1/geografia/paises'))
+        ->toThrow(LogicException::class, 'ubo-common.modules.login');
+    expect(UboApi::call('api-maestros', 'https://maestros.test')->get('/api/maestros/v1/geografia/paises')->json('data'))->toBe('ok');
+
+    Http::assertSentCount(2); // the token and the call without asUser()
+});

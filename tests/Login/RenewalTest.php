@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use UBO\Common\Auth\Infrastructure\ApiAuthClient;
+use UBO\Common\Login\Infrastructure\LoginTokens;
 use UBO\Common\Login\Infrastructure\TokenVault;
 
 beforeEach(function () {
@@ -474,4 +475,53 @@ test('a vault that cannot lock renews all the same', function () {
     whoami()->assertJson(['check' => true]);
 
     expect(vaultEntry($handle)['access_token'])->toBe($renewed);
+});
+
+/*
+| Renewal after an API rejected the token (UboApi ->asUser()).
+*/
+
+test('after a rejection a token another request already renewed is used without calling IAM', function () {
+    $handle = loggedIn($rejected = personToken());
+    $renewed = personToken();
+    app(TokenVault::class)->put($handle, ['access_token' => $renewed, 'refresh_token' => 'refresh-2'] + vaultEntry($handle));
+    Http::fake();
+
+    expect(app(LoginTokens::class)->renewedAfter($handle, $rejected)['access_token'])->toBe($renewed);
+
+    Http::assertNothingSent();
+});
+
+test('after a rejection the token is renewed even with time left', function () {
+    $handle = loggedIn($rejected = personToken());
+    iamRenews($renewed = personToken());
+
+    expect(app(LoginTokens::class)->renewedAfter($handle, $rejected)['access_token'])->toBe($renewed)
+        ->and(vaultEntry($handle)['access_token'])->toBe($renewed);
+    Http::assertSent(fn (Request $request) => $request->url() === IAM_TOKEN_URL && $request['refresh_token'] === 'refresh-token');
+});
+
+test('after a rejection without a refresh token there is nothing to renew', function () {
+    $handle = loggedIn($rejected = personToken(), refreshToken: null);
+    iamAnswers([]);
+
+    expect(app(LoginTokens::class)->renewedAfter($handle, $rejected))->toBeNull();
+
+    Http::assertNothingSent();
+});
+
+test('after a rejection a refresh token IAM rejects ends the session', function () {
+    $handle = loggedIn($rejected = personToken());
+    iamRefuses();
+
+    expect(app(LoginTokens::class)->renewedAfter($handle, $rejected))->toBeNull()
+        ->and(vaultEntry($handle))->toBeNull();
+});
+
+test('after a rejection with IAM down the entry stays with the rejected token', function () {
+    $handle = loggedIn($rejected = personToken());
+    iamAnswers([IAM_TOKEN_URL => connectionRefused()]);
+
+    expect(app(LoginTokens::class)->renewedAfter($handle, $rejected)['access_token'])->toBe($rejected)
+        ->and(vaultEntry($handle)['refresh_token'])->toBe('refresh-token');
 });

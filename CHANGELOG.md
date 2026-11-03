@@ -9,6 +9,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-11-03
+
+Versión MINOR: compatible con la 3.2 para las aplicaciones sin el módulo Login, que solo ejecutan
+`composer update ubo/common`. En el módulo Login, `Auth::id()` pasa a ser el `uuid` de la persona (se publica como
+minor porque el módulo aún no tiene usuarios en producción). Requiere API-Auth con la claim `uuid` en los tokens de
+usuario, **desplegado antes** que esta versión en los monolitos con login. Para `->asUser()`, la API destino necesita
+`UBO_AUTH_ALLOW_USER_TOKENS=true` y los roles del monolito en IAM, los scopes de esa API.
+
 ### Added
 
 - **ApiClient**: `->asUser()` en `UboApi::call()` y `callAsync()` llama a una API UBO **como la persona** que tiene

@@ -18,7 +18,7 @@ use JsonException;
  *
  * @internal
  *
- * @phpstan-type Entry array{id: string, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, access_token: string, refresh_token: string|null, expires_at: int, started_at: int, checked_at: int, simulated: bool}
+ * @phpstan-type Entry array{id: string, uuid: string|null, client_id: string, roles: list<string>, scopes: list<string>, audiences: list<string>, access_token: string, refresh_token: string|null, expires_at: int, started_at: int, checked_at: int, simulated: bool}
  */
 final class TokenVault
 {
@@ -152,6 +152,8 @@ final class TokenVault
 
         return [
             'id' => $entry['id'],
+            // Entries from before the uuid have none: the guard renews them to get it.
+            'uuid' => is_string($entry['uuid'] ?? null) && $entry['uuid'] !== '' ? $entry['uuid'] : null,
             'client_id' => $entry['client_id'],
             'roles' => $this->strings($entry['roles'] ?? null),
             'scopes' => $this->strings($entry['scopes'] ?? null),

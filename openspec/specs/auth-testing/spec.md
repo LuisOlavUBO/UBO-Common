@@ -43,9 +43,9 @@ bajo prueba (`ubo-auth.api`), salvo que se indique otra API, o `''` para ninguna
 - **THEN** el token verificado que ve la ruta tiene `roles` igual a `['lector']`
 
 ### Requirement: Token de usuario de prueba
-`forUser($userId, $clientId, $scopes, $ttl = 3600, $api = null, $roles = [], $audiences = null)` SHALL emitir un
-token con `sub` igual al usuario indicado y la claim `roles` con los roles indicados. Sin `$audiences`, se emite
-para la API bajo prueba como `forClient`. Con `$audiences`, el `aud` del token es el client id seguido de esas
+`forUser($userId, $clientId, $scopes, $ttl = 3600, $api = null, $roles = [], $audiences = null, $uuid = null)` SHALL
+emitir un token con `sub` igual al usuario indicado y la claim `roles` con los roles indicados. Sin `$audiences`, se
+emite para la API bajo prueba como `forClient`. Con `$audiences`, el `aud` del token es el client id seguido de esas
 aplicaciones, como el de un token de usuario de API-Auth, y `$api` no se agrega.
 
 #### Scenario: Token de usuario rechazado por defecto
@@ -59,6 +59,15 @@ aplicaciones, como el de un token de usuario de API-Auth, y `$api` no se agrega.
 #### Scenario: Token de usuario con audiencias de varias aplicaciones
 - **WHEN** el test usa `forUser('12345', 'SIS', [], audiences: ['api-maestros', 'portal'])`
 - **THEN** el `aud` del token es `['SIS', 'api-maestros', 'portal']`
+
+### Requirement: uuid del token de usuario de prueba
+El token de `forUser()` SHALL llevar la claim `uuid`: la indicada en `$uuid` o, sin ella,
+`TokenFactory::uuidFor($userId)`, un uuid determinístico derivado del usuario, para que un test pueda compararlo
+sin guardarlo.
+
+#### Scenario: uuid del token de usuario
+- **WHEN** el test usa `forUser('12345', 'SIS')` y luego `forUser('12345', 'SIS', uuid: '0b2e…')`
+- **THEN** el primer token tiene `uuid` igual a `TokenFactory::uuidFor('12345')` y el segundo `0b2e…`
 
 ### Requirement: Tokens inválidos de prueba
 `expired($clientId, $scopes)` SHALL emitir un token vencido y `forged($clientId, $scopes)` un token

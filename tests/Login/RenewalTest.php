@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use UBO\Common\Auth\Infrastructure\ApiAuthClient;
+use UBO\Common\Auth\Testing\TokenFactory;
 use UBO\Common\Login\Infrastructure\LoginTokens;
 use UBO\Common\Login\Infrastructure\TokenVault;
 
@@ -31,7 +32,7 @@ test('a token about to expire is renewed and the new tokens are kept', function 
     $renewed = personToken();
     iamRenews($renewed, 'refresh-2');
 
-    whoami()->assertJson(['check' => true, 'id' => '42']);
+    whoami()->assertJson(['check' => true, 'id' => TokenFactory::uuidFor('42')]);
 
     $entry = vaultEntry($handle);
 
@@ -140,7 +141,7 @@ test('a refresh token that another request already used does not end the session
         return Http::response(['error' => 'invalid_grant'], 400);
     }]);
 
-    whoami()->assertJson(['check' => true, 'id' => '42']);
+    whoami()->assertJson(['check' => true, 'id' => TokenFactory::uuidFor('42')]);
 
     expect(vaultEntry($handle))->toMatchArray(['access_token' => $renewed, 'refresh_token' => 'refresh-2']);
 });
@@ -231,7 +232,7 @@ test('with IAM down a token in force keeps the person logged in', function () {
     $handle = loginNearExpiry();
     iamAnswers([IAM_TOKEN_URL => connectionRefused()]);
 
-    whoami()->assertJson(['check' => true, 'id' => '42']);
+    whoami()->assertJson(['check' => true, 'id' => TokenFactory::uuidFor('42')]);
 
     expect(vaultEntry($handle)['refresh_token'])->toBe('refresh-token');
 });
@@ -247,7 +248,7 @@ test('with IAM down and the token expired the person is out but the tokens stay 
 
     iamRenews($renewed = personToken(), 'refresh-2');
 
-    whoami()->assertJson(['check' => true, 'id' => '42']);
+    whoami()->assertJson(['check' => true, 'id' => TokenFactory::uuidFor('42')]);
     expect(vaultEntry($handle))->toMatchArray(['access_token' => $renewed, 'refresh_token' => 'refresh-2']);
 });
 
@@ -524,4 +525,57 @@ test('after a rejection with IAM down the entry stays with the rejected token', 
 
     expect(app(LoginTokens::class)->renewedAfter($handle, $rejected)['access_token'])->toBe($rejected)
         ->and(vaultEntry($handle)['refresh_token'])->toBe('refresh-token');
+});
+
+/*
+| The uuid of the person across renewals.
+*/
+
+test('a renewal keeps the person: same sub and same uuid, and Auth::id() stays the uuid', function () {
+    $handle = loginNearExpiry();
+    iamRenews(personToken());
+
+    whoami()->assertJson(['check' => true, 'id' => TokenFactory::uuidFor('42')]);
+
+    expect(vaultEntry($handle))->toMatchArray(['id' => '42', 'uuid' => TokenFactory::uuidFor('42')]);
+});
+
+test('a renewed token with the same sub but another uuid ends the session', function () {
+    $handle = loginNearExpiry();
+    iamRenews($this->tokens->forUser('42', 'login-client', ['geografia:leer'], roles: ['coordinador'], uuid: '00000000-0000-4000-8000-000000000999'));
+
+    whoami()->assertJson(['check' => false]);
+
+    expect(vaultEntry($handle))->toBeNull();
+});
+
+test('a session from before the uuid is renewed at once to get it', function () {
+    $handle = loggedIn();
+    app(TokenVault::class)->put($handle, ['uuid' => null] + vaultEntry($handle));
+    iamRenews($renewed = personToken());
+
+    whoami()->assertJson(['check' => true, 'id' => TokenFactory::uuidFor('42')]);
+
+    expect(vaultEntry($handle))->toMatchArray(['access_token' => $renewed, 'uuid' => TokenFactory::uuidFor('42')]);
+});
+
+test('a session from before the uuid without a refresh token ends', function () {
+    $handle = loggedIn(refreshToken: null);
+    app(TokenVault::class)->put($handle, ['uuid' => null] + vaultEntry($handle));
+    iamAnswers([]);
+
+    whoami()->assertJson(['check' => false]);
+
+    expect(vaultEntry($handle))->toBeNull();
+    Http::assertNothingSent();
+});
+
+test('a session from before the uuid with IAM down is out for now but kept for the next try', function () {
+    $handle = loggedIn();
+    app(TokenVault::class)->put($handle, ['uuid' => null] + vaultEntry($handle));
+    iamAnswers([IAM_TOKEN_URL => connectionRefused()]);
+
+    whoami()->assertJson(['check' => false]);
+
+    expect(vaultEntry($handle))->not->toBeNull();
 });

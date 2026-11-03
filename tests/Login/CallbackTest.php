@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use UBO\Common\Auth\Testing\TokenFactory;
 use UBO\Common\Login\Exceptions\LoginFailed;
 use UBO\Common\Login\Exceptions\LoginNotConfigured;
 
@@ -173,6 +174,24 @@ test('a token that is not a person is refused', function () {
     $this->withBrowserSession()->get('/iam/callback?code=the-code&state='.$state)->assertStatus(400);
 
     expect(session('ubo_login'))->toBeNull();
+});
+
+test('a token without the uuid of the person is refused, asking to update API-Auth', function () {
+    $this->withoutExceptionHandling();
+    [$state] = startedLogin();
+    // An API-Auth from before the user uuid: an empty claim reads as none.
+    iamIssues($this->tokens->forUser('42', 'login-client', ['geografia:leer'], roles: ['coordinador'], uuid: ''));
+
+    expect(fn () => $this->withBrowserSession()->get('/iam/callback?code=the-code&state='.$state))
+        ->toThrow(LoginFailed::class, 'update API-Auth');
+
+    expect(session('ubo_login'))->toBeNull();
+});
+
+test('the session keeps the uuid of the person next to the internal id of IAM', function () {
+    loggedIn(personToken());
+
+    expect(vaultEntry())->toMatchArray(['id' => '42', 'uuid' => TokenFactory::uuidFor('42')]);
 });
 
 test('a person without roles in the application does not get in', function () {

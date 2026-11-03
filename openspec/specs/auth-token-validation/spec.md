@@ -40,7 +40,7 @@ todos ellos. El scope `*` en el token satisface cualquier scope. Si falta alguno
 
 ### Requirement: Token verificado disponible en la petición
 Tras validar, el middleware SHALL dejar el token en la petición, accesible con
-`VerifiedToken::from($request)`, que expone `id`, `clientId`, `userId`, `scopes`, `roles`, `expiresAt`,
+`VerifiedToken::from($request)`, que expone `id`, `clientId`, `userId`, `uuid`, `scopes`, `roles`, `expiresAt`,
 `audiences`, `hasScope()`, `hasRole()` e `isMachineToken()`. Sin token validado, `from()` MUST devolver
 `null`.
 
@@ -457,3 +457,24 @@ API-Auth.
 #### Scenario: Resultado en caché sin roles
 - **WHEN** el resultado de un token está en caché, guardado sin el campo `roles`
 - **THEN** se usa esa entrada con `roles` vacío y no se hace otra llamada de introspección
+
+### Requirement: Identificador público de la persona
+`VerifiedToken::$uuid` SHALL ser el identificador público de la persona: la claim `uuid` del token con la
+validación local, o el campo `uuid` de la introspección, en minúsculas. MUST ser `null` en un token de sistema y en
+un token de usuario sin esa claim. `userId` MUST seguir siendo el `sub`.
+
+#### Scenario: Token de usuario con uuid
+- **WHEN** llega un token de usuario con `sub=42` y `uuid=9F1C…` (en mayúsculas)
+- **THEN** `userId` es `42` y `uuid` es el mismo valor en minúsculas
+
+#### Scenario: Token de usuario por introspección
+- **WHEN** la introspección responde `uuid` para un token de usuario activo
+- **THEN** `uuid` es ese valor en minúsculas
+
+#### Scenario: Token de sistema
+- **WHEN** llega un token M2M
+- **THEN** `uuid` es `null`
+
+#### Scenario: Token de usuario anterior a la claim
+- **WHEN** llega un token de usuario sin claim `uuid`
+- **THEN** el token se acepta y `uuid` es `null`

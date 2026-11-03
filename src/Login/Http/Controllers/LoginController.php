@@ -96,6 +96,7 @@ final class LoginController
 
         $session->start([
             'id' => (string) $token->userId,
+            'uuid' => (string) $token->uuid,
             'client_id' => $token->clientId,
             'roles' => $token->roles,
             'scopes' => $token->scopes,
@@ -188,6 +189,11 @@ final class LoginController
 
         if ($token->isMachineToken()) {
             throw LoginFailed::invalidToken('it was not issued to a person');
+        }
+
+        // The person's id for this application (Auth::id()); API-Auth issues it since its user uuid.
+        if ($token->uuid === null) {
+            throw LoginFailed::invalidToken('it has no "uuid" claim, update API-Auth');
         }
 
         return $token;

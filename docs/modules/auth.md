@@ -88,7 +88,13 @@ $token->hasScope('x');     // bool
 $token->roles;             // ['coordinador']: roles con los que se emitió (vacío si el token no trae la claim)
 $token->hasRole('x');      // bool; el nombre se compara tal cual, con mayúsculas y minúsculas
 $token->expiresAt;         // DateTimeImmutable
+$token->userId;            // "sub": id interno de la persona en IAM (null en tokens de sistema). No guardarlo
+$token->uuid;              // id público de la persona (claim "uuid", minúsculas): el que se guarda
 ```
+
+**Para guardar a una persona se usa `uuid`, nunca `userId`.** `userId` es el autonumérico interno de IAM: cambia si
+su base se recrea y no coincide entre ambientes. `uuid` es inmutable. Es `null` en tokens de sistema y en tokens
+de usuario emitidos antes de que API-Auth agregara la claim (vencen en una hora).
 
 ## 3. Qué valida el middleware
 

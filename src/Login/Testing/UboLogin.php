@@ -18,9 +18,11 @@ final class UboLogin
     /**
      * @param  list<string>  $roles
      * @param  list<string>  $scopes
+     * @param  string  $id  the person's uuid: what Auth::id() gives
      * @param  list<string>  $audiences  "aud" after the client id; the client id is added
+     * @param  string|null  $sub  the internal id of IAM ($user->sub); by default $id
      */
-    public static function actingAs(string $id = '1', array $roles = [], array $scopes = [], array $audiences = [], string $clientId = 'login-client', int $ttl = 3600): void
+    public static function actingAs(string $id = '1', array $roles = [], array $scopes = [], array $audiences = [], string $clientId = 'login-client', int $ttl = 3600, ?string $sub = null): void
     {
         // The session it writes to belongs to a test, never to a real person.
         if (app()->isProduction()) {
@@ -39,7 +41,8 @@ final class UboLogin
         }
 
         (new LoginSession($session, app(TokenVault::class)))->start([
-            'id' => $id,
+            'id' => $sub ?? $id,
+            'uuid' => $id,
             'client_id' => $clientId,
             'roles' => array_values($roles),
             'scopes' => array_values($scopes),

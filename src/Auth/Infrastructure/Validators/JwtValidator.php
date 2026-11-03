@@ -103,7 +103,8 @@ final class JwtValidator implements LocalTokenValidator
 
     /**
      * Passport claims: jti, aud = [client id] (plus the API name for tokens issued for
-     * one API), sub = user id (or the client id for client credentials tokens), scopes, roles, exp.
+     * one API), sub = user id (or the client id for client credentials tokens), scopes, roles, exp,
+     * and in user tokens uuid, the public id of the person.
      */
     private function toVerifiedToken(UnencryptedToken $jwt): VerifiedToken
     {
@@ -118,14 +119,17 @@ final class JwtValidator implements LocalTokenValidator
             throw InvalidToken::malformed();
         }
 
+        $userId = VerifiedToken::userIdFromSubject($subject, $clientId);
+
         return new VerifiedToken(
             id: $id,
             clientId: $clientId,
-            userId: VerifiedToken::userIdFromSubject($subject, $clientId),
+            userId: $userId,
             scopes: array_values(array_filter($scopes, 'is_string')),
             expiresAt: $claims->get(RegisteredClaims::EXPIRATION_TIME),
             audiences: array_values(array_filter($audiences, 'is_string')),
             roles: $this->roles($claims->get('roles')),
+            uuid: VerifiedToken::uuidFrom($claims->get('uuid'), $userId),
         );
     }
 

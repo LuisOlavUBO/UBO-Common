@@ -87,7 +87,8 @@ Un JWT firmado (RS256) con:
 
 | Claim | Valor |
 |---|---|
-| `sub` | Id de la persona en IAM (`UboUser::getAuthIdentifier()`). En un token de sistema es el client id |
+| `sub` | Id **interno** de la persona en IAM (autonumérico, `UboUser::$sub`, `VerifiedToken::$userId`). En un token de sistema es el client id. No se guarda en otros sistemas |
+| `uuid` | Id **público e inmutable** de la persona (`UboUser::getAuthIdentifier()`, `Auth::id()`, `VerifiedToken::$uuid`). Solo en tokens de usuario. Es el que los satélites guardan |
 | `aud` | El client id del cliente de login **primero** y después, en orden alfabético, las aplicaciones dueñas de los scopes (`["<client id>", "api-maestros"]`) |
 | `scopes` | Los scopes que conceden los roles de la persona **en la aplicación del cliente**. Sin `scope` en el pedido, todos |
 | `roles` | Los nombres de esos roles |

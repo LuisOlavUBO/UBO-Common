@@ -105,7 +105,8 @@ Route::middleware('ubo.login')->group(function () {
 use Illuminate\Support\Facades\Auth;
 
 $user = Auth::guard('ubo')->user();   // UboUser
-$user->getAuthIdentifier();           // el "sub" del token: id de la persona en IAM
+$user->getAuthIdentifier();           // el "uuid" de la persona en IAM (también Auth::id() y $user->id)
+$user->sub;                           // el "sub": id interno de IAM, que no se guarda
 $user->roles;                         // ['coordinador']
 $user->scopes;                        // ['geografia:leer', ...]
 $user->audiences;                     // [client id, 'api-maestros', ...]
@@ -115,7 +116,18 @@ $user->hasScope('geografia:leer');
 
 El guard `ubo` existe sin tocar `config/auth.php` y no cambia el guard por defecto. Para usarlo como `web`:
 `'guards' => ['web' => ['driver' => 'ubo']]`. `UboUser` no guarda el token y no tiene nombre ni correo: hoy el
-token solo trae el id.
+token solo trae los identificadores.
+
+**`Auth::id()` es el `uuid` de la persona**, el identificador público e inmutable de IAM. Es el que tu aplicación
+guarda para referirse a una persona (por ejemplo en `created_by`), en una columna con índice que no sea la clave
+primaria. Nunca guardes `$user->sub`: es el autonumérico interno de IAM, que cambia si su base se recrea y no
+coincide entre ambientes.
+
+- El login exige que el token traiga `uuid`: con un API-Auth anterior a esa claim responde 400 ("update API-Auth").
+  **Despliega API-Auth antes que esta versión de Common.**
+- Una sesión abierta antes de la 3.3 (sin `uuid` en la bóveda) se renueva en su siguiente petición para obtenerlo;
+  sin refresh token, la persona vuelve a pasar por IAM. Nunca se usa `sub` en su lugar.
+- En cada renovación, el token nuevo debe ser de la misma persona: mismo `sub` y mismo `uuid`.
 
 **Los roles y scopes son los del último token emitido**: se actualizan con cada renovación (cada ~59 minutos con
 los tiempos por defecto). `roles` se recalcula: un rol que IAM quita o agrega se nota en la siguiente renovación, y
@@ -225,7 +237,7 @@ sesiones de la persona en otros sistemas siguen.
 ```php
 use UBO\Common\Login\Testing\UboLogin;
 
-UboLogin::actingAs(id: '42', roles: ['coordinador'], scopes: ['geografia:leer']);
+UboLogin::actingAs(id: '42', roles: ['coordinador'], scopes: ['geografia:leer']);   // id: el uuid (Auth::id()); sub: opcional
 
 $this->get('/informes')->assertOk();
 ```

@@ -20,9 +20,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
   IAM, los scopes de esa API en los roles de la aplicación del monolito.
 - **Login**: contrato `Login\Contracts\UserTokenProvider` (`token()` y `renewedAfter()`), con el token vigente de
   la persona de la petición.
+- **Auth**: `VerifiedToken::$uuid`, el identificador público e inmutable de la persona (claim `uuid` de API-Auth, o
+  `uuid` de la introspección), en minúsculas; `null` en tokens de sistema y en tokens anteriores a la claim. Para
+  guardar a una persona se usa `uuid`, nunca `userId` (el `sub`, autonumérico interno de IAM).
+- **Pruebas**: `TokenFactory::forUser()` emite la claim `uuid` (por defecto `TokenFactory::uuidFor($userId)`, o
+  `uuid:`), y `UboLogin::actingAs()` acepta `sub:`.
 
 ### Changed
 
+- **Login (aviso)**: `Auth::id()`, `UboUser::getAuthIdentifier()` y `$user->id` del guard `ubo` pasan a ser el **`uuid`**
+  de la persona, no el `sub`; el `sub` queda en `$user->sub`. Es la regla de API-Auth: los sistemas guardan el
+  `uuid`. Se publica como minor porque el módulo Login (3.2.0) aún no tiene usuarios en producción; una aplicación
+  que ya hubiera guardado `Auth::id()` debe migrar esos datos al `uuid`. **Requiere API-Auth con la claim `uuid`**,
+  desplegado antes: sin ella el login responde 400. Las sesiones abiertas se renuevan una vez para obtenerlo, y sin
+  refresh token vuelven a pasar por IAM. La renovación exige el mismo `sub` y el mismo `uuid`.
 - **Auth**: con `UBO_AUTH_API` definida, el middleware `ubo.auth` también exige que un **token de usuario** nombre a
   esa API en su `aud`, como ya hacía con los tokens de sistema (hallazgo 7). Un token de persona emitido para otro
   sistema ya no sirve en cualquier API que acepte tokens de usuario. Afecta solo a las APIs con

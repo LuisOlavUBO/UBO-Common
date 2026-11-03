@@ -151,10 +151,9 @@ que `UBO_AUTH_ALLOW_USER_TOKENS=true`.
 - **WHEN** `UBO_AUTH_ALLOW_USER_TOKENS=true` y llega un token de usuario válido con los scopes de la ruta
 - **THEN** la petición se acepta
 
-### Requirement: Audiencia de los tokens M2M
-Si `UBO_AUTH_API` está definida, un token M2M MUST incluir ese nombre en su `aud`, o se rechaza con 401
-(`wrong_audience`) aunque tenga los scopes de la ruta. Sin `UBO_AUTH_API` no se revisa la audiencia. Los
-tokens de usuario no se revisan contra la audiencia (comportamiento conocido, hallazgo 7).
+### Requirement: Audiencia de los tokens
+Si `UBO_AUTH_API` está definida, un token M2M o de usuario MUST incluir ese nombre en su `aud`, o se rechaza con
+401 (`wrong_audience`) aunque tenga los scopes de la ruta. Sin `UBO_AUTH_API` no se revisa la audiencia.
 
 #### Scenario: Token emitido para otra API
 - **WHEN** `UBO_AUTH_API=api-maestros` y llega un token M2M con `aud = ["SIS", "api-matricula"]`
@@ -166,6 +165,10 @@ tokens de usuario no se revisan contra la audiencia (comportamiento conocido, ha
 
 #### Scenario: Token de usuario de otra API
 - **WHEN** `UBO_AUTH_API=api-maestros`, se permiten tokens de usuario y llega uno sin `api-maestros` en `aud`
+- **THEN** se rechaza con 401 y motivo `wrong_audience`
+
+#### Scenario: Token de usuario para esta API
+- **WHEN** `UBO_AUTH_API=api-maestros`, se permiten tokens de usuario y llega uno con `aud = ["<client id del monolito>", "api-maestros"]`
 - **THEN** el token se acepta
 
 ### Requirement: Validación por introspección
